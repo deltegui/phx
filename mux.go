@@ -24,7 +24,7 @@ func (handler phxHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 type Middleware func(http.HandlerFunc) http.HandlerFunc
 
 type Mux struct {
-	Injector   *Injector
+	injector   *Injector
 	router     *http.ServeMux
 	middleware []Middleware
 }
@@ -48,16 +48,28 @@ func bootstrap(inj *Injector) {
 
 func NewMux() Mux {
 	mux := NewMuxEmpty()
-	bootstrap(mux.Injector)
+	bootstrap(mux.injector)
 	return mux
 }
 
 func NewMuxEmpty() Mux {
 	return Mux{
-		Injector:   NewInjector(),
+		injector:   NewInjector(),
 		router:     http.DefaultServeMux,
 		middleware: make([]Middleware, 0),
 	}
+}
+
+func (mux *Mux) Add(builder Builder) {
+	mux.injector.Add(builder)
+}
+
+func (mux *Mux) ShowAvailableBuilders() {
+	mux.injector.ShowAvailableBuilders()
+}
+
+func (mux *Mux) PopulateStruct(s interface{}) {
+	mux.injector.PopulateStruct(s)
 }
 
 func (mux *Mux) Use(middleware Middleware) {
@@ -65,7 +77,7 @@ func (mux *Mux) Use(middleware Middleware) {
 }
 
 func (mux *Mux) endpoint(method string, pattern string, builder Builder, middlewares ...Middleware) {
-	inner := mux.Injector.ResolveHandler(builder)
+	inner := mux.injector.ResolveHandler(builder)
 	handler := phxHandler{
 		method: method,
 		inner:  inner,
@@ -80,7 +92,7 @@ func (mux *Mux) Mount(pattern string, inner *Mux) {
 }
 
 func (mux *Mux) Any(pattern string, builder Builder, middlewares ...Middleware) {
-	mux.router.HandleFunc(pattern, mux.Injector.ResolveHandler(builder))
+	mux.router.HandleFunc(pattern, mux.injector.ResolveHandler(builder))
 }
 
 func (mux *Mux) Get(pattern string, builder Builder, middlewares ...Middleware) {
