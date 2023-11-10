@@ -39,7 +39,10 @@ type Pagination struct {
 
 type Role int
 
-const RoleAdmin Role = 1
+const (
+	RoleAdmin Role = iota
+	RoleUser
+)
 
 type UseCaseError struct {
 	Code   uint16

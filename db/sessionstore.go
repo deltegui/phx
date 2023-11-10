@@ -1,4 +1,4 @@
-package pgsql
+package db
 
 import (
 	"encoding/json"
@@ -25,7 +25,7 @@ func (store SQLSessionStore) Save(entry session.Entry) {
 		return
 	}
 	insert := "insert into sessions (id, value, timeout) values ($1, $2, $3)"
-	_, err = store.db.Exec(insert, entry.Id, serialized, entry.Timeout)
+	_, err = store.DB.Exec(insert, entry.Id, serialized, entry.Timeout)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -33,7 +33,7 @@ func (store SQLSessionStore) Save(entry session.Entry) {
 
 func (store SQLSessionStore) Get(id session.Id) (session.Entry, error) {
 	selectQuery := "select id, value, timeout from sessions where id = $1 "
-	row := store.db.QueryRowx(selectQuery, id)
+	row := store.DB.QueryRowx(selectQuery, id)
 	dst := make(map[string]interface{})
 	if err := row.MapScan(dst); err != nil {
 		return session.Entry{}, err
@@ -69,7 +69,7 @@ func (store SQLSessionStore) Get(id session.Id) (session.Entry, error) {
 
 func (store SQLSessionStore) Delete(id session.Id) {
 	delete := "delete from sessions where id = $1 "
-	_, err := store.db.Exec(delete, id)
+	_, err := store.DB.Exec(delete, id)
 	if err != nil {
 		log.Println("Error while deleting session for user: ", err)
 	}

@@ -1,4 +1,4 @@
-package pgsql
+package db
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 )
 
 type SQLDao struct {
-	db *sqlx.DB
+	DB *sqlx.DB
 }
 
 func NewDao(db *sqlx.DB) SQLDao {
@@ -17,7 +17,7 @@ func NewDao(db *sqlx.DB) SQLDao {
 }
 
 func (repo SQLDao) BeginOrFatal() *sqlx.Tx {
-	tx, err := repo.db.Beginx()
+	tx, err := repo.DB.Beginx()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func (repo Findable[ENTITY, FILTER]) Find(filter *FILTER, pagination *core.Pagin
 	pagination.TotalElements = count
 	log.Println(finalSql)
 	log.Println(params)
-	rows, err := repo.db.NamedQuery(finalSql, params)
+	rows, err := repo.DB.NamedQuery(finalSql, params)
 	if err != nil {
 		log.Println("Error while executing named query (finalSql inside Find): ", err)
 		return core.PaginatedList[ENTITY]{}, err
@@ -109,7 +109,7 @@ func (repo Findable[ENTITY, FILTER]) buildPaginationSql(pagination core.Paginati
 
 func (repo Findable[ENTITY, FILTER]) executeCount(sql string, params map[string]interface{}) (int, error) {
 	sql = fmt.Sprintf("select count(*) from (%s) count_table", sql)
-	result, err := repo.db.NamedQuery(sql, params)
+	result, err := repo.DB.NamedQuery(sql, params)
 	if err != nil {
 		return 0, err
 	}
