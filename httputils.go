@@ -70,3 +70,7 @@ func (mux Mux) ListenAndServe(address string) {
 	go startServer(&server)
 	waitAndStopServer(&server)
 }
+
+func Redirect(to string) http.HandlerFunc {
+	return http.RedirectHandler(to, http.StatusTemporaryRedirect).ServeHTTP
+}

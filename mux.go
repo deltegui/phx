@@ -60,6 +60,14 @@ func NewMuxEmpty() Mux {
 	}
 }
 
+func NewMuxFrom(other Mux) Mux {
+	return Mux{
+		injector:   other.injector,
+		router:     http.DefaultServeMux,
+		middleware: other.middleware,
+	}
+}
+
 func (mux *Mux) Add(builder Builder) {
 	mux.injector.Add(builder)
 }
