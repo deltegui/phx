@@ -3,58 +3,48 @@ package phx
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
-
-	"github.com/go-chi/chi/v5"
 )
 
 // FileServer creates using a router, a url path and a file path
 // a file server.
-func FileServer(r *chi.Mux, path string, root http.FileSystem) {
-	if strings.ContainsAny(path, "{}*") {
-		panic("FileServer does not permit any URL parameters.")
-	}
-
-	if path != "/" && path[len(path)-1] != '/' {
-		r.Get(path, http.RedirectHandler(path+"/", http.StatusMovedPermanently).ServeHTTP)
-		path += "/"
-	}
-	path += "*"
-
-	r.Get(path, func(w http.ResponseWriter, r *http.Request) {
-		rctx := chi.RouteContext(r.Context())
-		pathPrefix := strings.TrimSuffix(rctx.RoutePattern(), "/*")
-		fs := http.StripPrefix(pathPrefix, http.FileServer(root))
-		fs.ServeHTTP(w, r)
-	})
+func (mux *Mux) FileServer(pattern, root string) {
+	fs := http.FileServer(http.Dir(root))
+	http.Handle(pattern, fs)
 }
 
 // FileServerStatic creates a file server with your desired path
 // a file server that serves files in ./static folder.
-func FileServerStatic(r *chi.Mux, path string) {
-	FileServer(r, path, http.Dir("./static/"))
+func (mux *Mux) FileServerStatic(path string) {
+	mux.FileServer(path, "./static/")
 }
 
 // PrintLogo takes a file path and prints your fancy ascii logo.
 // It will fail if your file is not found.
 func PrintLogo(logoFile string) {
-	logo, err := ioutil.ReadFile(logoFile)
+	logo, err := os.ReadFile(logoFile)
 	if err != nil {
 		log.Fatalf("Cannot read logo file: %s\n", err)
 	}
 	fmt.Println(string(logo))
 }
 
-// WaitAndStopServer gives you a way to gracefully stop your server.
-func WaitAndStopServer(server *http.Server) {
-	done := make(chan os.Signal)
+func startServer(server *http.Server) {
+	log.Println("Listening on address: ", server.Addr)
+	log.Println("You are ready to GO!")
+	err := server.ListenAndServe()
+	if err != nil {
+		log.Fatalln("Error while listening: ", err)
+	}
+}
+
+func waitAndStopServer(server *http.Server) {
+	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	<-done
 
@@ -70,4 +60,13 @@ func WaitAndStopServer(server *http.Server) {
 	}
 
 	log.Print("Server exited properly")
+}
+
+func (mux Mux) ListenAndServe(address string) {
+	server := http.Server{
+		Addr:    address,
+		Handler: mux.router,
+	}
+	go startServer(&server)
+	waitAndStopServer(&server)
 }

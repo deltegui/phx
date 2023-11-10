@@ -1,5 +1,7 @@
 package core
 
+import "net/http"
+
 // UseCase is anything that have application domain code.
 type UseCase[R any, T any] func(R) (T, error)
 
@@ -42,4 +44,10 @@ const RoleAdmin Role = 1
 type UseCaseError struct {
 	Code   uint16
 	Reason string
+}
+
+type Auth interface {
+	Authorize(next http.HandlerFunc) http.HandlerFunc
+	Admin(next http.HandlerFunc) http.HandlerFunc
+	AuthorizeRoles(roles []Role, next http.HandlerFunc) http.HandlerFunc
 }

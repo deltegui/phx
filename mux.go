@@ -1,6 +1,12 @@
 package phx
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/deltegui/phx/core"
+	"github.com/deltegui/phx/hash"
+	"github.com/deltegui/phx/validator"
+)
 
 type phxHandler struct {
 	method string
@@ -18,14 +24,37 @@ func (handler phxHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 type Middleware func(http.HandlerFunc) http.HandlerFunc
 
 type Mux struct {
-	injector   *Injector
+	Injector   *Injector
 	router     *http.ServeMux
 	middleware []Middleware
 }
 
+func bootstrap(inj *Injector) {
+	inj.Add(func() core.Hasher { return hash.BcryptHasher{} })
+	inj.Add(func() core.Validator {
+		val := validator.New()
+		return func(t interface{}) map[string]string {
+			ss, err := val.Validate(t)
+			if err != nil {
+				panic(err)
+			}
+			if len(ss) == 0 {
+				return nil
+			}
+			return validator.ModelError(ss)
+		}
+	})
+}
+
 func NewMux() Mux {
+	mux := NewMuxEmpty()
+	bootstrap(mux.Injector)
+	return mux
+}
+
+func NewMuxEmpty() Mux {
 	return Mux{
-		injector:   NewInjector(),
+		Injector:   NewInjector(),
 		router:     http.DefaultServeMux,
 		middleware: make([]Middleware, 0),
 	}
@@ -36,7 +65,7 @@ func (mux *Mux) Use(middleware Middleware) {
 }
 
 func (mux *Mux) endpoint(method string, pattern string, builder Builder, middlewares ...Middleware) {
-	inner := mux.injector.ResolveHandler(builder)
+	inner := mux.Injector.ResolveHandler(builder)
 	handler := phxHandler{
 		method: method,
 		inner:  inner,
@@ -51,7 +80,7 @@ func (mux *Mux) Mount(pattern string, inner *Mux) {
 }
 
 func (mux *Mux) Any(pattern string, builder Builder, middlewares ...Middleware) {
-	mux.router.HandleFunc(pattern, mux.injector.ResolveHandler(builder))
+	mux.router.HandleFunc(pattern, mux.Injector.ResolveHandler(builder))
 }
 
 func (mux *Mux) Get(pattern string, builder Builder, middlewares ...Middleware) {
@@ -88,54 +117,4 @@ func (mux *Mux) Put(pattern string, builder Builder, middlewares ...Middleware) 
 
 func (mux *Mux) Trace(pattern string, builder Builder, middlewares ...Middleware) {
 	mux.endpoint(http.MethodTrace, pattern, builder, middlewares...)
-}
-
-var defaultMux Mux = NewMux()
-
-func Use(middleware Middleware) {
-	defaultMux.Use(middleware)
-}
-
-func Mount(pattern string, inner *Mux) {
-	defaultMux.Mount(pattern, inner)
-}
-
-func Any(pattern string, builder Builder, middlewares ...Middleware) {
-	defaultMux.Any(pattern, builder, middlewares...)
-}
-
-func Get(pattern string, builder Builder, middlewares ...Middleware) {
-	defaultMux.Get(pattern, builder, middlewares...)
-}
-
-func Post(pattern string, builder Builder, middlewares ...Middleware) {
-	defaultMux.Get(pattern, builder, middlewares...)
-}
-
-func Patch(pattern string, builder Builder, middlewares ...Middleware) {
-	defaultMux.Patch(pattern, builder, middlewares...)
-}
-
-func Connect(pattern string, builder Builder, middlewares ...Middleware) {
-	defaultMux.Connect(pattern, builder, middlewares...)
-}
-
-func Delete(pattern string, builder Builder, middlewares ...Middleware) {
-	defaultMux.Delete(pattern, builder, middlewares...)
-}
-
-func Head(pattern string, builder Builder, middlewares ...Middleware) {
-	defaultMux.Head(pattern, builder, middlewares...)
-}
-
-func Options(pattern string, builder Builder, middlewares ...Middleware) {
-	defaultMux.Options(pattern, builder, middlewares...)
-}
-
-func Put(pattern string, builder Builder, middlewares ...Middleware) {
-	defaultMux.Put(pattern, builder, middlewares...)
-}
-
-func Trace(pattern string, builder Builder, middlewares ...Middleware) {
-	defaultMux.Trace(pattern, builder, middlewares...)
 }

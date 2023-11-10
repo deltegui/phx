@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/deltegui/phoenix/validator"
+	"github.com/deltegui/phx/validator"
 )
 
 type loginRequest struct {

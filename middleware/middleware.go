@@ -14,12 +14,12 @@ type contextKey int
 const authenticatedUserKey contextKey = 0
 
 type SessionAuth struct {
-	sessionManager *session.SessionManager
+	sessionManager *session.Manager
 	redirect       bool
 	redirectURL    string
 }
 
-func NewSessionAuth(sessionManager *session.SessionManager) SessionAuth {
+func NewSessionAuth(sessionManager *session.Manager) SessionAuth {
 	return SessionAuth{
 		sessionManager: sessionManager,
 		redirect:       false,
@@ -27,7 +27,7 @@ func NewSessionAuth(sessionManager *session.SessionManager) SessionAuth {
 	}
 }
 
-func NewSessionAuthWithRedirection(sessionManager *session.SessionManager, redirectURL string) SessionAuth {
+func NewSessionAuthWithRedirection(sessionManager *session.Manager, redirectURL string) SessionAuth {
 	return SessionAuth{
 		sessionManager: sessionManager,
 		redirect:       true,
@@ -78,13 +78,13 @@ func (authMiddle SessionAuth) AuthorizeRoles(roles []core.Role, next http.Handle
 	})
 }
 
-func makeRequestWithUser(req *http.Request, user session.SessionUser) *http.Request {
+func makeRequestWithUser(req *http.Request, user session.User) *http.Request {
 	ctxWithUser := context.WithValue(req.Context(), authenticatedUserKey, user)
 	return req.WithContext(ctxWithUser)
 }
 
-func GetUser(req *http.Request) session.SessionUser {
-	return req.Context().Value(authenticatedUserKey).(session.SessionUser)
+func GetUser(req *http.Request) session.User {
+	return req.Context().Value(authenticatedUserKey).(session.User)
 }
 
 func (authMiddle SessionAuth) handleError(w http.ResponseWriter, req *http.Request) {
@@ -95,8 +95,8 @@ func (authMiddle SessionAuth) handleError(w http.ResponseWriter, req *http.Reque
 	}
 }
 
-func CsrfMiddleware(csrf csrf.Csrf) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
+func Csrf(csrf csrf.Csrf) func(http.HandlerFunc) http.HandlerFunc {
+	return func(next http.HandlerFunc) http.HandlerFunc {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			if req.Method != http.MethodPost {
 				next.ServeHTTP(w, req)

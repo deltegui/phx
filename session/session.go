@@ -11,49 +11,49 @@ import (
 	"github.com/deltegui/phx/core"
 )
 
-type SessionId string
+type Id string
 
-type SessionUser struct {
+type User struct {
 	Id   int
 	Name string
 	Role core.Role
 }
 
-type SessionEntry struct {
-	Id      SessionId
-	User    SessionUser
+type Entry struct {
+	Id      Id
+	User    User
 	Timeout time.Time
 }
 
-func (entry SessionEntry) IsValid() bool {
+func (entry Entry) IsValid() bool {
 	return time.Now().Before(entry.Timeout)
 }
 
 type SessionStore interface {
-	Save(entry SessionEntry)
-	Get(id SessionId) (SessionEntry, error)
-	Delete(id SessionId)
+	Save(entry Entry)
+	Get(id Id) (Entry, error)
+	Delete(id Id)
 }
 
-type MemorySessionStore struct {
-	values map[SessionId]SessionEntry
+type MemoryStore struct {
+	values map[Id]Entry
 	mutex  sync.Mutex
 }
 
-func NewMemorySessionStore() *MemorySessionStore {
-	return &MemorySessionStore{
-		values: make(map[SessionId]SessionEntry),
+func NewMemoryStore() *MemoryStore {
+	return &MemoryStore{
+		values: make(map[Id]Entry),
 		mutex:  sync.Mutex{},
 	}
 }
 
-func (store *MemorySessionStore) Save(entry SessionEntry) {
+func (store *MemoryStore) Save(entry Entry) {
 	store.mutex.Lock()
 	store.values[entry.Id] = entry
 	store.mutex.Unlock()
 }
 
-func (store *MemorySessionStore) Get(id SessionId) (SessionEntry, error) {
+func (store *MemoryStore) Get(id Id) (Entry, error) {
 	store.mutex.Lock()
 	fmt.Println("Number of sessions: ", len(store.values))
 	for key := range store.values {
@@ -62,41 +62,41 @@ func (store *MemorySessionStore) Get(id SessionId) (SessionEntry, error) {
 	entry, ok := store.values[id]
 	store.mutex.Unlock()
 	if !ok {
-		return SessionEntry{}, fmt.Errorf("no session entry for id '%s'", id)
+		return Entry{}, fmt.Errorf("no session entry for id '%s'", id)
 	}
 	return entry, nil
 }
 
-func (store *MemorySessionStore) Delete(id SessionId) {
+func (store *MemoryStore) Delete(id Id) {
 	store.mutex.Lock()
 	delete(store.values, id)
 	store.mutex.Unlock()
 }
 
-type SessionManager struct {
+type Manager struct {
 	store           SessionStore
 	hasher          core.Hasher
 	timeoutDuration time.Duration
 }
 
-func NewSessionManager(store SessionStore, hasher core.Hasher, duration time.Duration) *SessionManager {
-	return &SessionManager{
+func NewManager(store SessionStore, hasher core.Hasher, duration time.Duration) *Manager {
+	return &Manager{
 		store:           store,
 		hasher:          hasher,
 		timeoutDuration: duration,
 	}
 }
 
-func NewInMemorySessionManager(hasher core.Hasher, duration time.Duration) *SessionManager {
-	return NewSessionManager(
-		NewMemorySessionStore(),
+func NewInMemoryManager(hasher core.Hasher, duration time.Duration) *Manager {
+	return NewManager(
+		NewMemoryStore(),
 		hasher,
 		duration)
 }
 
-func (manager *SessionManager) Add(user SessionUser) SessionEntry {
+func (manager *Manager) Add(user User) Entry {
 	id := manager.createSessionId(user)
-	entry := SessionEntry{
+	entry := Entry{
 		Id:      id,
 		User:    user,
 		Timeout: time.Now().Add(manager.timeoutDuration),
@@ -105,7 +105,7 @@ func (manager *SessionManager) Add(user SessionUser) SessionEntry {
 	return entry
 }
 
-func (manager *SessionManager) createSessionId(user SessionUser) SessionId {
+func (manager *Manager) createSessionId(user User) Id {
 	const bits int = 32
 	random, err := rand.Prime(rand.Reader, bits)
 	if err != nil {
@@ -114,32 +114,32 @@ func (manager *SessionManager) createSessionId(user SessionUser) SessionId {
 	now := time.Now().UTC().Format(time.ANSIC)
 	str := fmt.Sprintf("%s-%s-%s-%d", random.String(), now, user.Name, user.Id)
 	hash := manager.hasher.Hash(str)
-	return SessionId(hash)
+	return Id(hash)
 }
 
-func (manager *SessionManager) Get(id SessionId) (SessionEntry, error) {
+func (manager *Manager) Get(id Id) (Entry, error) {
 	return manager.store.Get(id)
 }
 
-func (manager *SessionManager) Delete(id SessionId) {
+func (manager *Manager) Delete(id Id) {
 	manager.store.Delete(id)
 }
 
-func (manager *SessionManager) GetUserIfValid(id SessionId) (SessionUser, error) {
+func (manager *Manager) GetUserIfValid(id Id) (User, error) {
 	entry, err := manager.Get(id)
 	if err != nil {
-		return SessionUser{}, err
+		return User{}, err
 	}
 	if entry.IsValid() {
 		return entry.User, nil
 	}
 	manager.store.Delete(id)
-	return SessionUser{}, fmt.Errorf("expired session")
+	return User{}, fmt.Errorf("expired session")
 }
 
 const cookieKey string = "phx_session"
 
-func (manager *SessionManager) CreateSessionCookie(w http.ResponseWriter, user SessionUser) {
+func (manager *Manager) CreateSessionCookie(w http.ResponseWriter, user User) {
 	entry := manager.Add(user)
 	age := 24 * time.Hour
 	http.SetCookie(w, &http.Cookie{
@@ -152,30 +152,30 @@ func (manager *SessionManager) CreateSessionCookie(w http.ResponseWriter, user S
 	})
 }
 
-func readSessionId(req *http.Request) (SessionId, *http.Cookie, error) {
+func readSessionId(req *http.Request) (Id, *http.Cookie, error) {
 	cookie, err := req.Cookie(cookieKey)
 	if err != nil {
-		return SessionId(""), nil, fmt.Errorf("no session cookie is present in the request")
+		return Id(""), nil, fmt.Errorf("no session cookie is present in the request")
 	}
-	return SessionId(cookie.Value), cookie, nil
+	return Id(cookie.Value), cookie, nil
 }
 
-func (manager *SessionManager) ReadSessionCookie(req *http.Request) (SessionUser, error) {
+func (manager *Manager) ReadSessionCookie(req *http.Request) (User, error) {
 	sessionId, cookie, err := readSessionId(req)
 	if err != nil {
-		return SessionUser{}, err
+		return User{}, err
 	}
 	if cookie.Expires.After(time.Now()) {
-		return SessionUser{}, fmt.Errorf("expired sesison cookie")
+		return User{}, fmt.Errorf("expired sesison cookie")
 	}
 	user, err := manager.GetUserIfValid(sessionId)
 	if err != nil {
-		return SessionUser{}, err
+		return User{}, err
 	}
 	return user, nil
 }
 
-func (manager *SessionManager) DestroySession(w http.ResponseWriter, req *http.Request) error {
+func (manager *Manager) DestroySession(w http.ResponseWriter, req *http.Request) error {
 	session, _, err := readSessionId(req)
 	if err != nil {
 		return err
