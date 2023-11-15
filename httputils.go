@@ -9,6 +9,9 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/deltegui/phx/middleware"
+	"github.com/deltegui/phx/session"
 )
 
 // FileServer creates using a router, a url path and a file path
@@ -73,4 +76,8 @@ func (mux Mux) ListenAndServe(address string) {
 
 func Redirect(to string) http.HandlerFunc {
 	return http.RedirectHandler(to, http.StatusTemporaryRedirect).ServeHTTP
+}
+
+func GetUser(req *http.Request) session.User {
+	return middleware.GetUser(req)
 }
