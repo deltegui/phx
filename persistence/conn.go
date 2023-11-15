@@ -1,4 +1,4 @@
-package dbconn
+package persistence
 
 import (
 	"log"
