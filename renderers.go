@@ -137,6 +137,10 @@ func (r HtmlRenderer) CreateView(req *http.Request, tmpl *template.Template, mod
 	}
 }
 
+func (view *View) FillFormErrors(e map[string]string) {
+	view.model.FormErrors = e
+}
+
 func (view View) Execute(w io.Writer) error {
 	return view.template.Execute(w, view.model)
 }
