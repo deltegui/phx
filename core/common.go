@@ -17,26 +17,6 @@ type Cypher interface {
 	UnEncrypt(data []byte) ([]byte, error)
 }
 
-type PaginatedList[T any] struct {
-	Pagination Pagination
-	Items      []T
-}
-
-type PaginatedListOrder int
-
-const (
-	OrderDescending = 0
-	OrderAscending  = 1
-)
-
-type Pagination struct {
-	CurrentPage     int
-	ElementsPerPage int
-	TotalElements   int
-	Order           PaginatedListOrder
-	OrderBy         string
-}
-
 type Role int
 
 const (

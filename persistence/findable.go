@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/deltegui/phx/core"
+	"github.com/deltegui/phx/pagination"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -50,9 +50,9 @@ func NewFindableDefault[ENTITY any, FILTER any](
 	return NewFindable[ENTITY, FILTER](db, buildFindSql, buildOrderBySql, 20)
 }
 
-func (repo Findable[ENTITY, FILTER]) Find(filter *FILTER, pagination *core.Pagination) (core.PaginatedList[ENTITY], error) {
+func (repo Findable[ENTITY, FILTER]) Find(filter *FILTER, pagination *pagination.Pagination) (pagination.List[ENTITY], error) {
 	if pagination == nil {
-		pagination = &core.Pagination{
+		pagination = &pagination.Pagination{
 			CurrentPage:     1,
 			ElementsPerPage: repo.elementsPerPage,
 		}
@@ -65,7 +65,7 @@ func (repo Findable[ENTITY, FILTER]) Find(filter *FILTER, pagination *core.Pagin
 	count, err := repo.executeCount(sql, params)
 	if err != nil {
 		log.Println("Error while reading number of elements (count) for Find with pagination: ", err)
-		return core.PaginatedList[ENTITY]{}, err
+		return pagination.List[ENTITY]{}, err
 	}
 	orderSql := repo.buildOrderBySql()
 	paginationSql := repo.buildPaginationSql(*pagination, params, count)
@@ -76,10 +76,10 @@ func (repo Findable[ENTITY, FILTER]) Find(filter *FILTER, pagination *core.Pagin
 	rows, err := repo.DB.NamedQuery(finalSql, params)
 	if err != nil {
 		log.Println("Error while executing named query (finalSql inside Find): ", err)
-		return core.PaginatedList[ENTITY]{}, err
+		return pagination.List[ENTITY]{}, err
 	}
 	items := repo.scanRows(rows)
-	return core.PaginatedList[ENTITY]{
+	return pagination.List[ENTITY]{
 		Items:      items,
 		Pagination: *pagination,
 	}, nil
@@ -100,7 +100,7 @@ func (repo Findable[ENTITY, FILTER]) scanRows(rows *sqlx.Rows) []ENTITY {
 	return result
 }
 
-func (repo Findable[ENTITY, FILTER]) buildPaginationSql(pagination core.Pagination, params map[string]interface{}, count int) string {
+func (repo Findable[ENTITY, FILTER]) buildPaginationSql(pagination pagination.Pagination, params map[string]interface{}, count int) string {
 	sql := " limit :limit offset :offset "
 	params["limit"] = pagination.ElementsPerPage
 	params["offset"] = pagination.ElementsPerPage * (pagination.CurrentPage - 1)
