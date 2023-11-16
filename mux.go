@@ -59,6 +59,7 @@ func NewMuxEmpty() Mux {
 		injector:    NewInjector(),
 		router:      http.DefaultServeMux,
 		middlewares: make([]Middleware, 0),
+		endpoints:   make(map[string]phxHandler),
 	}
 }
 
@@ -67,6 +68,7 @@ func NewMuxFrom(other Mux) Mux {
 		injector:    other.injector,
 		router:      http.DefaultServeMux,
 		middlewares: other.middlewares,
+		endpoints:   make(map[string]phxHandler),
 	}
 }
 
