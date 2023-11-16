@@ -10,23 +10,25 @@ import (
 
 type phxHandler struct {
 	method string
-	inner  http.HandlerFunc
+	innery map[string]http.HandlerFunc
 }
 
 func (handler phxHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if req.Method != handler.method {
+	inner, ok := handler.innery[req.Method]
+	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	handler.inner(w, req)
+	inner(w, req)
 }
 
 type Middleware func(http.HandlerFunc) http.HandlerFunc
 
 type Mux struct {
-	injector   *Injector
-	router     *http.ServeMux
-	middleware []Middleware
+	injector    *Injector
+	router      *http.ServeMux
+	endpoints   map[string]phxHandler
+	middlewares []Middleware
 }
 
 func bootstrap(inj *Injector) {
@@ -54,17 +56,17 @@ func NewMux() Mux {
 
 func NewMuxEmpty() Mux {
 	return Mux{
-		injector:   NewInjector(),
-		router:     http.DefaultServeMux,
-		middleware: make([]Middleware, 0),
+		injector:    NewInjector(),
+		router:      http.DefaultServeMux,
+		middlewares: make([]Middleware, 0),
 	}
 }
 
 func NewMuxFrom(other Mux) Mux {
 	return Mux{
-		injector:   other.injector,
-		router:     http.DefaultServeMux,
-		middleware: other.middleware,
+		injector:    other.injector,
+		router:      http.DefaultServeMux,
+		middlewares: other.middlewares,
 	}
 }
 
@@ -81,16 +83,29 @@ func (mux *Mux) PopulateStruct(s interface{}) {
 }
 
 func (mux *Mux) Use(middleware Middleware) {
-	mux.middleware = append(mux.middleware, middleware)
+	mux.middlewares = append(mux.middlewares, middleware)
 }
 
 func (mux *Mux) endpoint(method string, pattern string, builder Builder, middlewares ...Middleware) {
 	inner := mux.injector.ResolveHandler(builder)
-	handler := phxHandler{
-		method: method,
-		inner:  inner,
+	handler, ok := mux.endpoints[pattern]
+	if !ok {
+		handler = phxHandler{
+			method: method,
+			innery: make(map[string]http.HandlerFunc),
+		}
+		mux.router.Handle(pattern, handler)
 	}
-	mux.router.Handle(pattern, handler)
+
+	for i := 0; i < len(middlewares); i++ {
+		inner = middlewares[i](inner)
+	}
+
+	for i := 0; i < len(mux.middlewares); i++ {
+		inner = mux.middlewares[i](inner)
+	}
+
+	handler.innery[method] = inner
 }
 
 func (mux *Mux) Mount(pattern string, inner *Mux) {
@@ -113,10 +128,6 @@ func (mux *Mux) Post(pattern string, builder Builder, middlewares ...Middleware)
 
 func (mux *Mux) Patch(pattern string, builder Builder, middlewares ...Middleware) {
 	mux.endpoint(http.MethodPatch, pattern, builder, middlewares...)
-}
-
-func (mux *Mux) Connect(pattern string, builder Builder, middlewares ...Middleware) {
-	mux.endpoint(http.MethodConnect, pattern, builder, middlewares...)
 }
 
 func (mux *Mux) Delete(pattern string, builder Builder, middlewares ...Middleware) {
