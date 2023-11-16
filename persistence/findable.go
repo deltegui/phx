@@ -50,15 +50,15 @@ func NewFindableDefault[ENTITY any, FILTER any](
 	return NewFindable[ENTITY, FILTER](db, buildFindSql, buildOrderBySql, 20)
 }
 
-func (repo Findable[ENTITY, FILTER]) Find(filter *FILTER, pagination *pagination.Pagination) (pagination.List[ENTITY], error) {
-	if pagination == nil {
-		pagination = &pagination.Pagination{
+func (repo Findable[ENTITY, FILTER]) Find(filter *FILTER, pag *pagination.Pagination) (pagination.List[ENTITY], error) {
+	if pag == nil {
+		pag = &pagination.Pagination{
 			CurrentPage:     1,
 			ElementsPerPage: repo.elementsPerPage,
 		}
 	}
-	if pagination.ElementsPerPage <= 0 {
-		pagination.ElementsPerPage = repo.elementsPerPage
+	if pag.ElementsPerPage <= 0 {
+		pag.ElementsPerPage = repo.elementsPerPage
 	}
 	params := map[string]interface{}{}
 	sql := repo.buildFindSql(filter, params)
@@ -68,9 +68,9 @@ func (repo Findable[ENTITY, FILTER]) Find(filter *FILTER, pagination *pagination
 		return pagination.List[ENTITY]{}, err
 	}
 	orderSql := repo.buildOrderBySql()
-	paginationSql := repo.buildPaginationSql(*pagination, params, count)
+	paginationSql := repo.buildPaginationSql(*pag, params, count)
 	finalSql := fmt.Sprintf(" %s %s %s ", sql, orderSql, paginationSql)
-	pagination.TotalElements = count
+	pag.TotalElements = count
 	log.Println(finalSql)
 	log.Println(params)
 	rows, err := repo.DB.NamedQuery(finalSql, params)
@@ -81,7 +81,7 @@ func (repo Findable[ENTITY, FILTER]) Find(filter *FILTER, pagination *pagination
 	items := repo.scanRows(rows)
 	return pagination.List[ENTITY]{
 		Items:      items,
-		Pagination: *pagination,
+		Pagination: *pag,
 	}, nil
 }
 
