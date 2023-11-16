@@ -74,8 +74,10 @@ func (mux Mux) ListenAndServe(address string) {
 	waitAndStopServer(&server)
 }
 
-func Redirect(to string) http.HandlerFunc {
-	return http.RedirectHandler(to, http.StatusTemporaryRedirect).ServeHTTP
+func Redirect(to string) func() http.HandlerFunc {
+	return func() http.HandlerFunc {
+		return http.RedirectHandler(to, http.StatusTemporaryRedirect).ServeHTTP
+	}
 }
 
 func GetUser(req *http.Request) session.User {
