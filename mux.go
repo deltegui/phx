@@ -94,6 +94,7 @@ func (mux *Mux) endpoint(method string, pattern string, builder Builder, middlew
 			method: method,
 			innery: make(map[string]http.HandlerFunc),
 		}
+		mux.endpoints[pattern] = handler
 		mux.router.Handle(pattern, handler)
 	}
 
