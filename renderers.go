@@ -32,7 +32,7 @@ func (ctx *Context) Render(status int, parsed string, vm interface{}) {
 	ctx.Res.WriteHeader(status)
 	model := ctx.createViewModel(parsed, vm)
 	if err := ctx.tmpl[parsed].Execute(ctx.Res, model); err != nil {
-		log.Println("[PHX] Error executing tempalte with parsed name '%s': %s", parsed, err)
+		log.Printf("[PHX] Error executing tempalte with parsed name '%s': %s\n", parsed, err)
 	}
 }
 
@@ -41,7 +41,7 @@ func (ctx *Context) RenderWithErrors(status int, parsed string, vm interface{}, 
 	model := ctx.createViewModel(parsed, vm)
 	model.FormErrors = formErrors
 	if err := ctx.tmpl[parsed].Execute(ctx.Res, model); err != nil {
-		log.Println("[PHX] Error executing tempalte with parsed name '%s': %s", parsed, err)
+		log.Printf("[PHX] Error executing tempalte with parsed name '%s': %s\n", parsed, err)
 	}
 }
 
@@ -99,9 +99,13 @@ func (ctx *Context) createViewModel(name string, model interface{}) ViewModel {
 	if ctx.locstore != nil {
 		loc = ctx.locstore.GetUsingRequest(name, ctx.Req)
 	}
+	csrfToken := ""
+	if ctx.csrf != nil {
+		csrfToken = ctx.csrf.Generate()
+	}
 	return ViewModel{
 		Model:     model,
-		CsrfToken: ctx.csrf.Generate(),
+		CsrfToken: csrfToken,
 		Localizer: loc,
 	}
 }
