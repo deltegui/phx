@@ -50,7 +50,7 @@ type CorsConfig struct {
 	AllowOrigin  string
 }
 
-type PhxConfig struct {
+type Config struct {
 	CsrfExpiration time.Duration
 	Localizer      *localizer.LocalizerStore
 	Cors           CorsConfig
@@ -60,7 +60,7 @@ type PhxConfig struct {
 	EnableCsrf     bool
 }
 
-func NewRouterWithConfig(config PhxConfig) *Router {
+func NewRouterWithConfig(config Config) *Router {
 	router := httprouter.New()
 	middlewares := []Middleware{}
 	if config.EnableCors {
@@ -97,7 +97,7 @@ func preflightCorsHanlder(c CorsConfig) http.Handler {
 }
 
 func NewRouter() *Router {
-	return NewRouterWithConfig(PhxConfig{
+	return NewRouterWithConfig(Config{
 		CsrfExpiration: 15 * time.Minute,
 		EnableCors:     false,
 		EnableStatic:   false,
