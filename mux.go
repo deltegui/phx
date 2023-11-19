@@ -255,3 +255,7 @@ func (ctx *Context) Redirect(to string) func() http.HandlerFunc {
 func (ctx *Context) GetUser() session.User {
 	return getUser(ctx.Req)
 }
+
+func (ctx *Context) GetParam(name string) string {
+	return ctx.params.ByName(name)
+}
