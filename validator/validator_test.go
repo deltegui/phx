@@ -14,7 +14,7 @@ type loginRequest struct {
 }
 
 func TestShouldCheckAndReturnValidationErrors(t *testing.T) {
-	v := validator.New()
+	v := validator.NewPlayground()
 	t.Run("AllOk", func(t *testing.T) {
 		login := loginRequest{
 			Name:     "demo",
@@ -75,7 +75,7 @@ func TestShouldCheckAndReturnValidationErrors(t *testing.T) {
 }
 
 func TestValidatorResultMustBeCompatibleWithError(t *testing.T) {
-	v := validator.New()
+	v := validator.NewPlayground()
 	login := loginRequest{
 		Name:     "d",
 		Password: "",

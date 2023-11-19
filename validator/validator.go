@@ -3,6 +3,7 @@ package validator
 import (
 	"reflect"
 
+	"github.com/deltegui/phx/core"
 	playgroundValidator "github.com/go-playground/validator/v10"
 )
 
@@ -39,8 +40,22 @@ type PlaygroundValidator struct {
 	validator *playgroundValidator.Validate
 }
 
-func New() PlaygroundValidator {
+func NewPlayground() PlaygroundValidator {
 	return PlaygroundValidator{validator: playgroundValidator.New()}
+}
+
+func New() core.Validator {
+	val := NewPlayground()
+	return func(t interface{}) map[string]string {
+		ss, err := val.Validate(t)
+		if err != nil {
+			panic(err)
+		}
+		if len(ss) == 0 {
+			return nil
+		}
+		return ModelError(ss)
+	}
 }
 
 func (val PlaygroundValidator) Validate(target interface{}) ([]ValidationError, error) {

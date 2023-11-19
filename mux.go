@@ -32,6 +32,7 @@ type Context struct {
 	params   httprouter.Params
 	locstore *localizer.LocalizerStore
 	csrf     *csrf.Csrf
+	validate core.Validator
 }
 
 type Router struct {
@@ -43,6 +44,7 @@ type Router struct {
 	tmplFS      embed.FS
 	csrf        *csrf.Csrf
 	locstore    *localizer.LocalizerStore
+	validate    core.Validator
 }
 
 type CorsConfig struct {
@@ -73,12 +75,13 @@ func (r *Router) UseStatic(path string) {
 	r.router.NotFound = http.FileServer(http.Dir(path))
 }
 
-func NewRouterWithConfig() *Router {
+func NewRouter() *Router {
 	return &Router{
 		injector:    NewInjector(),
 		router:      httprouter.New(),
 		middlewares: []Middleware{},
 		tmpl:        make(map[string]*template.Template),
+		validate:    validator.New(),
 	}
 }
 
@@ -91,10 +94,6 @@ func preflightCorsHanlder(methods, origin string) http.Handler {
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
-}
-
-func NewRouter() *Router {
-	return NewRouterWithConfig()
 }
 
 func NewRouterFromOther(r *Router) *Router {
@@ -116,24 +115,12 @@ func (r *Router) createContext(w http.ResponseWriter, req *http.Request, params 
 		params:   params,
 		locstore: r.locstore,
 		csrf:     r.csrf,
+		validate: r.validate,
 	}
 }
 
 func (r *Router) Bootstrap() {
 	r.injector.Add(func() core.Hasher { return hash.BcryptHasher{} })
-	r.injector.Add(func() core.Validator {
-		val := validator.New()
-		return func(t interface{}) map[string]string {
-			ss, err := val.Validate(t)
-			if err != nil {
-				panic(err)
-			}
-			if len(ss) == 0 {
-				return nil
-			}
-			return validator.ModelError(ss)
-		}
-	})
 }
 
 func (r *Router) Add(builder Builder) {
@@ -146,8 +133,8 @@ func (r *Router) ShowAvailableBuilders() {
 
 func (r *Router) ShowAvailableTemplates() {
 	fmt.Println("Templates:")
-	for key := range r.tmpl {
-		fmt.Println(key)
+	for key, value := range r.tmpl {
+		fmt.Println(key, "->", value.Tree.Name)
 	}
 }
 
@@ -274,6 +261,10 @@ func (ctx *Context) GetCurrentLanguage() string {
 	return localizer.ReadCookie(ctx.Req)
 }
 
-func (ctx *Context) ChangeLangauge(to string) {
+func (ctx *Context) ChangeLanguage(to string) {
 	localizer.CreateCookie(ctx.Res, to)
+}
+
+func (ctx *Context) Validate(s any) map[string]string {
+	return ctx.validate(s)
 }
