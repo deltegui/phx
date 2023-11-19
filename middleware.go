@@ -97,7 +97,7 @@ func (authMiddle SessionAuth) handleError(ctx *Context) {
 	}
 }
 
-func csrfMiddleware(csrf csrf.Csrf) Middleware {
+func csrfMiddleware(csrf *csrf.Csrf) Middleware {
 	return func(next Handler) Handler {
 		return func(ctx *Context) {
 			if ctx.Req.Method != http.MethodPost {
@@ -113,13 +113,13 @@ func csrfMiddleware(csrf csrf.Csrf) Middleware {
 	}
 }
 
-func corsMiddleware(c CorsConfig) Middleware {
+func corsMiddleware(methods, origin string) Middleware {
 	return func(next Handler) Handler {
 		return func(ctx *Context) {
 			next(ctx)
 			header := ctx.Res.Header()
-			header.Set("Access-Control-Allow-Methods", c.AllowMethods)
-			header.Set("Access-Control-Allow-Origin", c.AllowOrigin)
+			header.Set("Access-Control-Allow-Methods", methods)
+			header.Set("Access-Control-Allow-Origin", origin)
 		}
 	}
 }

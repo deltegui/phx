@@ -22,8 +22,8 @@ type Csrf struct {
 	expires time.Duration
 }
 
-func New(expires time.Duration) Csrf {
-	return Csrf{
+func New(expires time.Duration) *Csrf {
+	return &Csrf{
 		cipher:  generateCipher(),
 		expires: expires,
 	}

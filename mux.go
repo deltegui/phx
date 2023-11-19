@@ -50,58 +50,51 @@ type CorsConfig struct {
 	AllowOrigin  string
 }
 
-type Config struct {
-	CsrfExpiration time.Duration
-	Localizer      *localizer.LocalizerStore
-	Cors           CorsConfig
-	EnableCors     bool
-	StaticPath     string
-	EnableStatic   bool
-	EnableCsrf     bool
+func (r *Router) UseTemplate(fs embed.FS) {
+	r.tmplFS = fs
 }
 
-func NewRouterWithConfig(config Config) *Router {
-	router := httprouter.New()
-	middlewares := []Middleware{}
-	if config.EnableCors {
-		router.GlobalOPTIONS = preflightCorsHanlder(config.Cors)
-		middlewares = append(middlewares, corsMiddleware(config.Cors))
-	}
-	if config.EnableStatic {
-		router.NotFound = http.FileServer(http.Dir(config.StaticPath))
-	}
-	var csrfInstance *csrf.Csrf = nil
-	if config.EnableCsrf {
-		*csrfInstance = csrf.New(config.CsrfExpiration)
-		middlewares = append(middlewares, csrfMiddleware(*csrfInstance))
-	}
+func (r *Router) UseLocalization(files embed.FS, sharedKey, errorsKey string) {
+	loc := localizer.NewLocalizerStore(files, sharedKey, errorsKey)
+	r.locstore = &loc
+}
+
+func (r *Router) UseCsrf(expires time.Duration) {
+	r.csrf = csrf.New(expires)
+	r.middlewares = append(r.middlewares, csrfMiddleware(r.csrf))
+}
+
+func (r *Router) UseCors(methods, origin string) {
+	r.router.GlobalOPTIONS = preflightCorsHanlder(methods, origin)
+	r.middlewares = append(r.middlewares, corsMiddleware(methods, origin))
+}
+
+func (r *Router) UseStatic(path string) {
+	r.router.NotFound = http.FileServer(http.Dir(path))
+}
+
+func NewRouterWithConfig() *Router {
 	return &Router{
 		injector:    NewInjector(),
 		router:      httprouter.New(),
-		middlewares: middlewares,
+		middlewares: []Middleware{},
 		tmpl:        make(map[string]*template.Template),
-		csrf:        csrfInstance,
-		locstore:    config.Localizer,
 	}
 }
 
-func preflightCorsHanlder(c CorsConfig) http.Handler {
+func preflightCorsHanlder(methods, origin string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Header.Get("Access-Control-Request-Method") != "" {
 			header := w.Header()
-			header.Set("Access-Control-Allow-Methods", c.AllowMethods)
-			header.Set("Access-Control-Allow-Origin", c.AllowOrigin)
+			header.Set("Access-Control-Allow-Methods", methods)
+			header.Set("Access-Control-Allow-Origin", origin)
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
 }
 
 func NewRouter() *Router {
-	return NewRouterWithConfig(Config{
-		CsrfExpiration: 15 * time.Minute,
-		EnableCors:     false,
-		EnableStatic:   false,
-	})
+	return NewRouterWithConfig()
 }
 
 func NewRouterFromOther(r *Router) *Router {
@@ -126,9 +119,9 @@ func (r *Router) createContext(w http.ResponseWriter, req *http.Request, params 
 	}
 }
 
-func (r *Router) Bootstrap(inj *Injector) {
-	inj.Add(func() core.Hasher { return hash.BcryptHasher{} })
-	inj.Add(func() core.Validator {
+func (r *Router) Bootstrap() {
+	r.injector.Add(func() core.Hasher { return hash.BcryptHasher{} })
+	r.injector.Add(func() core.Validator {
 		val := validator.New()
 		return func(t interface{}) map[string]string {
 			ss, err := val.Validate(t)
