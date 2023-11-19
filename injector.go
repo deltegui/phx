@@ -2,7 +2,6 @@ package phx
 
 import (
 	"log"
-	"net/http"
 	"reflect"
 )
 
@@ -55,8 +54,8 @@ func (injector Injector) GetByType(name reflect.Type) interface{} {
 }
 
 // ResolveHandler created by a builder
-func (injector Injector) ResolveHandler(builder Builder) http.HandlerFunc {
-	return injector.CallBuilder(builder).(http.HandlerFunc)
+func (injector Injector) ResolveHandler(builder Builder) Handler {
+	return injector.CallBuilder(builder).(Handler)
 }
 
 // CallBuilder injecting all parameters with provided builders. If some parameter
