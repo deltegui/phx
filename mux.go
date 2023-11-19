@@ -246,10 +246,20 @@ func (r Router) Run(address string) {
 	waitAndStopServer(&server)
 }
 
-func (ctx *Context) Redirect(to string) func() http.HandlerFunc {
-	return func() http.HandlerFunc {
-		return http.RedirectHandler(to, http.StatusTemporaryRedirect).ServeHTTP
+func Redirect(to string) func() Handler {
+	return func() Handler {
+		return func(c *Context) {
+			http.RedirectHandler(to, http.StatusTemporaryRedirect).ServeHTTP(c.Res, c.Req)
+		}
 	}
+}
+
+func (ctx *Context) Redirect(to string) {
+	http.Redirect(ctx.Res, ctx.Req, to, http.StatusTemporaryRedirect)
+}
+
+func (ctx *Context) RedirectCode(to string, code int) {
+	http.Redirect(ctx.Res, ctx.Req, to, code)
 }
 
 func (ctx *Context) GetUser() session.User {
@@ -258,4 +268,12 @@ func (ctx *Context) GetUser() session.User {
 
 func (ctx *Context) GetParam(name string) string {
 	return ctx.params.ByName(name)
+}
+
+func (ctx *Context) GetCurrentLanguage() string {
+	return localizer.ReadCookie(ctx.Req)
+}
+
+func (ctx *Context) ChangeLangauge(to string) {
+	localizer.CreateCookie(ctx.Res, to)
 }

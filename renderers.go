@@ -11,6 +11,11 @@ import (
 	"github.com/deltegui/phx/localizer"
 )
 
+func (ctx *Context) String(data string, a ...any) {
+	ctx.Res.WriteHeader(http.StatusOK)
+	fmt.Fprintf(ctx.Res, data, a...)
+}
+
 func (ctx *Context) Json(status int, data interface{}) {
 	response, err := json.Marshal(data)
 	if err != nil {

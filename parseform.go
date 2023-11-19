@@ -1,7 +1,6 @@
 package phx
 
 import (
-	"net/http"
 	"reflect"
 	"strconv"
 )
@@ -32,8 +31,8 @@ import (
 // { A = false, B: 2 }
 //
 // The supported field types are: int, int8, int16, int32, int64, float32, float64, bool and string
-func ParseForm(req *http.Request, dst interface{}) {
-	req.ParseForm()
+func (ctx *Context) ParseForm(dst interface{}) {
+	ctx.Req.ParseForm()
 	v := reflect.ValueOf(dst)
 	// Is a pointer to an interface. An interface is a pointer to something else.
 	e := v.Elem()
@@ -50,7 +49,7 @@ func ParseForm(req *http.Request, dst interface{}) {
 		if !ok {
 			lookup = fieldType.Name
 		}
-		if !req.Form.Has(lookup) {
+		if !ctx.Req.Form.Has(lookup) {
 			continue
 		}
 		if !fieldValue.IsValid() {
@@ -59,7 +58,7 @@ func ParseForm(req *http.Request, dst interface{}) {
 		if !fieldValue.CanSet() {
 			continue
 		}
-		value := req.Form.Get(lookup)
+		value := ctx.Req.Form.Get(lookup)
 		setValue(fieldValue, value)
 	}
 }
