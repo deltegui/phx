@@ -33,7 +33,7 @@ func (ctx *Context) Render(status int, parsed string, vm interface{}) {
 	model := ctx.createViewModel(parsed, vm)
 	template, ok := ctx.tmpl[parsed]
 	if !ok {
-		log.Panicln("[PHX] Error executing template with parsed name:", parsed, ". It does not exists")
+		log.Println("[PHX] Error executing template with parsed name:", parsed, ". It does not exists")
 		return
 	}
 	if err := template.Execute(ctx.Res, model); err != nil {

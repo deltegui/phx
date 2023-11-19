@@ -144,6 +144,13 @@ func (r *Router) ShowAvailableBuilders() {
 	r.injector.ShowAvailableBuilders()
 }
 
+func (r *Router) ShowAvailableTemplates() {
+	fmt.Println("Templates:")
+	for key := range r.tmpl {
+		fmt.Println(key)
+	}
+}
+
 func (r *Router) PopulateStruct(s interface{}) {
 	r.injector.PopulateStruct(s)
 }
