@@ -31,7 +31,12 @@ func (ctx *Context) Json(status int, data interface{}) {
 func (ctx *Context) Render(status int, parsed string, vm interface{}) {
 	ctx.Res.WriteHeader(status)
 	model := ctx.createViewModel(parsed, vm)
-	if err := ctx.tmpl[parsed].Execute(ctx.Res, model); err != nil {
+	template, ok := ctx.tmpl[parsed]
+	if !ok {
+		log.Panicln("[PHX] Error executing template with parsed name:", parsed, ". It does not exists")
+		return
+	}
+	if err := template.Execute(ctx.Res, model); err != nil {
 		log.Printf("[PHX] Error executing tempalte with parsed name '%s': %s\n", parsed, err)
 	}
 }
