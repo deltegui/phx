@@ -70,7 +70,7 @@ func (r *Router) AddDefaultTemplateFunctions() {
 	}
 }
 
-func (r *Router) Parse(name string, patterns ...string) {
+func (r *Router) Parse(name, main string, patterns ...string) {
 	tmpl := template.New(name)
 	if r.tmplFuncs != nil {
 		tmpl = tmpl.Funcs(r.tmplFuncs)
