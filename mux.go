@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"reflect"
 	"syscall"
 	"time"
 
@@ -158,15 +159,9 @@ func (r *Router) UseSessionPostgres(db *sqlx.DB, duration time.Duration) {
 }
 
 func (r *Router) UseSession(provider session.SessionStore, duration time.Duration) {
-	type p struct {
-		hasher core.Hasher
-	}
-	var a p
-	r.injector.PopulateStruct(&a)
-	if a.hasher == nil {
-		log.Panicln("[PHX] Cannot use session if you dont procvide a core hasher implementation. Call Bootstrap method or register a implementation into the dependency injection container")
-	}
-	r.sessions = session.NewManager(provider, a.hasher, duration)
+	var hasher core.Hasher
+	r.injector.GetByType(reflect.TypeOf(&hasher).Elem())
+	r.sessions = session.NewManager(provider, hasher, duration)
 }
 
 func (r *Router) UseSessionAuth() {
