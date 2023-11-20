@@ -9,74 +9,86 @@ import (
 	"github.com/deltegui/phx/session"
 )
 
+type auth interface {
+	authorize() Middleware
+	admin() Middleware
+	authorizeRoles(roles []core.Role) Middleware
+}
+
 type contextKey int
 
 const authenticatedUserKey contextKey = 0
 
-type SessionAuth struct {
+type sessionAuth struct {
 	sessionManager *session.Manager
 	redirect       bool
 	redirectURL    string
 }
 
-func NewSessionAuth(sessionManager *session.Manager) SessionAuth {
-	return SessionAuth{
+func newSessionAuth(sessionManager *session.Manager) sessionAuth {
+	return sessionAuth{
 		sessionManager: sessionManager,
 		redirect:       false,
 		redirectURL:    "",
 	}
 }
 
-func NewSessionAuthWithRedirection(sessionManager *session.Manager, redirectURL string) SessionAuth {
-	return SessionAuth{
+func newSessionAuthWithRedirection(sessionManager *session.Manager, redirectURL string) sessionAuth {
+	return sessionAuth{
 		sessionManager: sessionManager,
 		redirect:       true,
 		redirectURL:    redirectURL,
 	}
 }
 
-func (authMiddle SessionAuth) Authorize(next Handler) Handler {
-	return func(ctx *Context) {
-		user, err := authMiddle.sessionManager.ReadSessionCookie(ctx.Req)
-		if err != nil {
-			authMiddle.handleError(ctx)
-			return
-		}
-		ctx.Req = makeRequestWithUser(ctx.Req, user)
-		next(ctx)
-	}
-}
-
-func (authMiddle SessionAuth) Admin(next Handler) Handler {
-	return func(ctx *Context) {
-		user, err := authMiddle.sessionManager.ReadSessionCookie(ctx.Req)
-		if err != nil {
-			authMiddle.handleError(ctx)
-			return
-		}
-		if user.Role != core.RoleAdmin {
-			authMiddle.handleError(ctx)
-			return
-		}
-		ctx.Req = makeRequestWithUser(ctx.Req, user)
-		next(ctx)
-	}
-}
-
-func (authMiddle SessionAuth) AuthorizeRoles(roles []core.Role, next Handler) Handler {
-	return func(ctx *Context) {
-		user, err := authMiddle.sessionManager.ReadSessionCookie(ctx.Req)
-		if err != nil {
-			authMiddle.handleError(ctx)
-			return
-		}
-		for _, authorizedRol := range roles {
-			if user.Role == authorizedRol {
-				next(ctx)
+func (authMiddle sessionAuth) authorize() Middleware {
+	return func(next Handler) Handler {
+		return func(ctx *Context) {
+			user, err := authMiddle.sessionManager.ReadSessionCookie(ctx.Req)
+			if err != nil {
+				authMiddle.handleError(ctx)
 				return
 			}
+			ctx.Req = makeRequestWithUser(ctx.Req, user)
+			next(ctx)
 		}
-		authMiddle.handleError(ctx)
+	}
+}
+
+func (authMiddle sessionAuth) admin() Middleware {
+	return func(next Handler) Handler {
+		return func(ctx *Context) {
+			user, err := authMiddle.sessionManager.ReadSessionCookie(ctx.Req)
+			if err != nil {
+				authMiddle.handleError(ctx)
+				return
+			}
+			if user.Role != core.RoleAdmin {
+				authMiddle.handleError(ctx)
+				return
+			}
+			ctx.Req = makeRequestWithUser(ctx.Req, user)
+			next(ctx)
+		}
+	}
+}
+
+func (authMiddle sessionAuth) authorizeRoles(roles []core.Role) Middleware {
+	return func(next Handler) Handler {
+		return func(ctx *Context) {
+			user, err := authMiddle.sessionManager.ReadSessionCookie(ctx.Req)
+			if err != nil {
+				authMiddle.handleError(ctx)
+				return
+			}
+			for _, authorizedRol := range roles {
+				if user.Role == authorizedRol {
+					next(ctx)
+					return
+				}
+			}
+			authMiddle.handleError(ctx)
+		}
 	}
 }
 
@@ -89,7 +101,7 @@ func getUser(req *http.Request) session.User {
 	return req.Context().Value(authenticatedUserKey).(session.User)
 }
 
-func (authMiddle SessionAuth) handleError(ctx *Context) {
+func (authMiddle sessionAuth) handleError(ctx *Context) {
 	if authMiddle.redirect {
 		http.Redirect(ctx.Res, ctx.Req, authMiddle.redirectURL, http.StatusTemporaryRedirect)
 	} else {

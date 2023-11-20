@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"net/http"
 )
 
 // UseCase is anything that have application domain code.
@@ -34,10 +33,4 @@ type UseCaseError struct {
 
 func (caseErr UseCaseError) Error() string {
 	return fmt.Sprintf("UseCaseError -> [%d] %s", caseErr.Code, caseErr.Reason)
-}
-
-type Auth interface {
-	Authorize(next http.HandlerFunc) http.HandlerFunc
-	Admin(next http.HandlerFunc) http.HandlerFunc
-	AuthorizeRoles(roles []Role, next http.HandlerFunc) http.HandlerFunc
 }

@@ -37,6 +37,7 @@ type Context struct {
 	locstore *localizer.LocalizerStore
 	csrf     *csrf.Csrf
 	validate core.Validator
+	sessions *session.Manager
 }
 
 type Router struct {
@@ -49,7 +50,8 @@ type Router struct {
 	csrf        *csrf.Csrf
 	locstore    *localizer.LocalizerStore
 	validate    core.Validator
-	Sessions    *session.Manager
+	sessions    *session.Manager
+	auth        auth
 }
 
 type CorsConfig struct {
@@ -121,6 +123,7 @@ func (r *Router) createContext(w http.ResponseWriter, req *http.Request, params 
 		locstore: r.locstore,
 		csrf:     r.csrf,
 		validate: r.validate,
+		sessions: r.sessions,
 	}
 }
 
@@ -161,7 +164,58 @@ func (r *Router) UseSession(provider session.SessionStore, duration time.Duratio
 	if !ok {
 		log.Panicln("[PHX] Cannot use session if you dont procvide a core hasher implementation. Call Bootstrap method or register a implementation into the dependency injection container")
 	}
-	r.Sessions = session.NewManager(provider, hasher, duration)
+	r.sessions = session.NewManager(provider, hasher, duration)
+}
+
+func (r *Router) UseSessionAuth() {
+	if r.sessions == nil {
+		log.Panicln("[PHX] Cannot use session authorization if you dont enable sessions. Please call to router's method 'UseSession' or any variant beofre calling 'UseSessisonAuth'")
+	}
+	r.auth = newSessionAuth(r.sessions)
+}
+
+func (r *Router) UseSessionAuthWithRedirection(redirectUrl string) {
+	if r.sessions == nil {
+		log.Panicln("[PHX] Cannot use session authorization if you dont enable sessions. Please call to router's method 'UseSession' or any variant beofre calling 'UseSessisonAuth'")
+	}
+	r.auth = newSessionAuthWithRedirection(r.sessions, redirectUrl)
+}
+
+func (r *Router) ensureHaveAuth() {
+	if r.auth == nil {
+		log.Panicln("[PHX] Cannot use Authorize middleware if you dont provide an authorization implementation. Use 'UseSesssionAuth' to enable authorization")
+	}
+}
+
+func (r *Router) Authorize() Middleware {
+	r.ensureHaveAuth()
+	return r.auth.authorize()
+}
+
+func (r *Router) Admin() Middleware {
+	r.ensureHaveAuth()
+	return r.auth.admin()
+}
+
+func (r *Router) AuthorizeRoles(roles []core.Role) Middleware {
+	r.ensureHaveAuth()
+	return r.auth.authorizeRoles(roles)
+}
+
+func (r *Context) CreateSessionCookie(user session.User) {
+	r.sessions.CreateSessionCookie(r.Res, user)
+}
+
+func (r *Context) ReadSessionCookie() (session.User, error) {
+	return r.sessions.ReadSessionCookie(r.Req)
+}
+
+func (r *Context) DestroySession() error {
+	return r.sessions.DestroySession(r.Res, r.Req)
+}
+
+func (ctx *Context) GetUser() session.User {
+	return getUser(ctx.Req)
 }
 
 func (r *Router) Use(middleware Middleware) {
@@ -275,10 +329,6 @@ func (ctx *Context) Redirect(to string) {
 
 func (ctx *Context) RedirectCode(to string, code int) {
 	http.Redirect(ctx.Res, ctx.Req, to, code)
-}
-
-func (ctx *Context) GetUser() session.User {
-	return getUser(ctx.Req)
 }
 
 func (ctx *Context) GetParam(name string) string {
