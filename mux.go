@@ -160,7 +160,7 @@ func (r *Router) UseSessionPostgres(db *sqlx.DB, duration time.Duration) {
 
 func (r *Router) UseSession(provider session.SessionStore, duration time.Duration) {
 	var hasher core.Hasher
-	r.injector.GetByType(reflect.TypeOf(&hasher).Elem())
+	hasher = r.injector.GetByType(reflect.TypeOf(&hasher).Elem()).(core.Hasher)
 	r.sessions = session.NewManager(provider, hasher, duration)
 }
 
