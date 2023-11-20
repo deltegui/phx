@@ -104,8 +104,10 @@ func getUser(req *http.Request) session.User {
 func (authMiddle sessionAuth) handleError(ctx *Context) {
 	if authMiddle.redirect {
 		http.Redirect(ctx.Res, ctx.Req, authMiddle.redirectURL, http.StatusTemporaryRedirect)
+		logHttp(ctx.Req, ctx.Res, "Authentication failed. Redirecting to url: %s", authMiddle.redirectURL)
 	} else {
 		ctx.Res.WriteHeader(http.StatusUnauthorized)
+		logHttp(ctx.Req, ctx.Res, "Authentication failed")
 	}
 }
 
@@ -122,6 +124,7 @@ func csrfMiddleware(csrf *csrf.Csrf) Middleware {
 			}
 			ctx.Res.WriteHeader(http.StatusForbidden)
 			ctx.String("Expired csrf token")
+			logHttp(ctx.Req, ctx.Res, "Expired token")
 		}
 	}
 }
@@ -134,5 +137,12 @@ func corsMiddleware(methods, origin string) Middleware {
 			header.Set("Access-Control-Allow-Methods", methods)
 			header.Set("Access-Control-Allow-Origin", origin)
 		}
+	}
+}
+
+func HttpLogMiddleware(next Handler) Handler {
+	return func(ctx *Context) {
+		logHttp(ctx.Req, ctx.Res, "incoming request")
+		next(ctx)
 	}
 }
