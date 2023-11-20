@@ -116,7 +116,7 @@ func (authMiddle sessionAuth) handleError(ctx *Context) {
 func csrfMiddleware(csrf *csrf.Csrf) Middleware {
 	return func(next Handler) Handler {
 		return func(ctx *Context) {
-			if ctx.Req.Method != http.MethodPost {
+			if ctx.Req.Method == http.MethodGet || ctx.Req.Method == http.MethodOptions {
 				next(ctx)
 				return
 			}

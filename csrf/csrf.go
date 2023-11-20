@@ -109,8 +109,11 @@ func (csrf Csrf) CheckRequest(req *http.Request) bool {
 	req.ParseForm()
 	token := req.Form.Get(CsrfHeaderName)
 	if len(token) == 0 {
-		log.Printf("Csrf header (%s) token not found\n", CsrfHeaderName)
-		return false
+		token = req.Header.Get(CsrfHeaderName)
+		if len(token) == 0 {
+			log.Printf("Csrf header (%s) token not found\n", CsrfHeaderName)
+			return false
+		}
 	}
 	return csrf.Check(token)
 }
