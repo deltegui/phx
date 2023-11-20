@@ -61,6 +61,9 @@ func (csrf *Csrf) decrypt(token string) (string, error) {
 		return "", fmt.Errorf("cannot decode base64 csrf token: %s", err)
 	}
 	nonceSize := csrf.cipher.NonceSize()
+	if len(bytes) < nonceSize {
+		return "", fmt.Errorf("malformed csrf token")
+	}
 	nonce, ciphertext := bytes[:nonceSize], bytes[nonceSize:]
 	plaintext, err := csrf.cipher.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
