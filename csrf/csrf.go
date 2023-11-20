@@ -86,7 +86,6 @@ func (csrf Csrf) Check(token string) bool {
 		log.Println("Cannot decrypt csrf token: ", err)
 		return false
 	}
-	fmt.Println(token, "-->", raw)
 	parts := strings.Split(raw, "//00//")
 	if len(parts) < 2 {
 		log.Println("Malformed csrf token. Not enough parts.")
@@ -113,6 +112,5 @@ func (csrf Csrf) CheckRequest(req *http.Request) bool {
 		log.Printf("Csrf header (%s) token not found\n", CsrfHeaderName)
 		return false
 	}
-	fmt.Println(token)
 	return csrf.Check(token)
 }

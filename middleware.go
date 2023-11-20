@@ -121,6 +121,7 @@ func csrfMiddleware(csrf *csrf.Csrf) Middleware {
 				return
 			}
 			ctx.Res.WriteHeader(http.StatusForbidden)
+			ctx.String("Expired csrf token")
 		}
 	}
 }
