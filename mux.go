@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"reflect"
 	"syscall"
 	"time"
 
@@ -159,7 +160,7 @@ func (r *Router) UseSessionPostgres(db *sqlx.DB, duration time.Duration) {
 
 func (r *Router) UseSession(provider session.SessionStore, duration time.Duration) {
 	var hasher core.Hasher
-	hasher, ok := r.injector.Get(&hasher).(core.Hasher)
+	hasher, ok := r.injector.GetByType(reflect.TypeOf(hasher)).(core.Hasher)
 	if !ok {
 		log.Panicln("[PHX] Cannot use session if you dont procvide a core hasher implementation. Call Bootstrap method or register a implementation into the dependency injection container")
 	}
