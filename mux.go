@@ -82,6 +82,10 @@ func (r *Router) UseStatic(path string) {
 	r.router.NotFound = http.FileServer(http.Dir(path))
 }
 
+func (r *Router) UseStaticEmbedded(fs embed.FS) {
+	r.router.NotFound = http.FileServer(http.FS(fs))
+}
+
 func NewRouter() *Router {
 	return &Router{
 		injector:    NewInjector(),
@@ -277,7 +281,7 @@ func PrintLogo(logoFile string) {
 
 // PrintLogo takes a embedded filesystem and file path and prints your fancy ascii logo.
 // It will fail if your file is not found.
-func PrintLogoEmbed(fs embed.FS, path string) {
+func PrintLogoEmbedded(fs embed.FS, path string) {
 	logo, err := fs.ReadFile(path)
 	if err != nil {
 		log.Fatalf("Cannot read logo file: %s\n", err)

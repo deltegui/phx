@@ -17,8 +17,7 @@ import (
 const CsrfHeaderName string = "X-Csrf-Token"
 
 type Csrf struct {
-	cipher cipher.AEAD
-
+	cipher  cipher.AEAD
 	expires time.Duration
 }
 
