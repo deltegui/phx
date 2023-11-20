@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"reflect"
 	"syscall"
 	"time"
 
@@ -17,8 +18,10 @@ import (
 	"github.com/deltegui/phx/csrf"
 	"github.com/deltegui/phx/hash"
 	"github.com/deltegui/phx/localizer"
+	"github.com/deltegui/phx/persistence"
 	"github.com/deltegui/phx/session"
 	"github.com/deltegui/phx/validator"
+	"github.com/jmoiron/sqlx"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -46,6 +49,7 @@ type Router struct {
 	csrf        *csrf.Csrf
 	locstore    *localizer.LocalizerStore
 	validate    core.Validator
+	Sessions    *session.Manager
 }
 
 type CorsConfig struct {
@@ -133,14 +137,31 @@ func (r *Router) ShowAvailableBuilders() {
 }
 
 func (r *Router) ShowAvailableTemplates() {
-	fmt.Println("Templates:")
+	log.Println("Templates:")
 	for key, value := range r.tmpl {
-		fmt.Println(key, "->", value.Tree.Name)
+		log.Println(key, "->", value.Tree.Name)
 	}
 }
 
 func (r *Router) PopulateStruct(s interface{}) {
 	r.injector.PopulateStruct(s)
+}
+
+func (r *Router) UseSessionInMemory(duration time.Duration) {
+	r.UseSession(session.NewMemoryStore(), duration)
+}
+
+func (r *Router) UseSessionPostgres(db *sqlx.DB, duration time.Duration) {
+	r.UseSession(persistence.NewSessionStore(db), duration)
+}
+
+func (r *Router) UseSession(provider session.SessionStore, duration time.Duration) {
+	var hasher core.Hasher
+	hasher, ok := r.injector.Get(reflect.TypeOf(&hasher)).(core.Hasher)
+	if !ok {
+		log.Panicln("[PHX] Cannot use session if you dont procvide a core hasher implementation. Call Bootstrap method or register a implementation into the dependency injection container")
+	}
+	r.Sessions = session.NewManager(provider, hasher, duration)
 }
 
 func (r *Router) Use(middleware Middleware) {
