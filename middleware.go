@@ -2,6 +2,8 @@ package phx
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/deltegui/phx/core"
@@ -104,10 +106,10 @@ func getUser(req *http.Request) session.User {
 func (authMiddle sessionAuth) handleError(ctx *Context) {
 	if authMiddle.redirect {
 		http.Redirect(ctx.Res, ctx.Req, authMiddle.redirectURL, http.StatusTemporaryRedirect)
-		logHttp(ctx.Req, ctx.Res, "Authentication failed. Redirecting to url: %s", authMiddle.redirectURL)
+		log.Printf("Authentication failed. Redirecting to url: %s", authMiddle.redirectURL)
 	} else {
 		ctx.Res.WriteHeader(http.StatusUnauthorized)
-		logHttp(ctx.Req, ctx.Res, "Authentication failed")
+		log.Println("Authentication failed")
 	}
 }
 
@@ -123,8 +125,8 @@ func csrfMiddleware(csrf *csrf.Csrf) Middleware {
 				return
 			}
 			ctx.Res.WriteHeader(http.StatusForbidden)
-			ctx.String("Expired csrf token")
-			logHttp(ctx.Req, ctx.Res, "Expired token")
+			fmt.Fprintf(ctx.Res, "Expired csrf token")
+			log.Println("Expired token")
 		}
 	}
 }
@@ -142,7 +144,12 @@ func corsMiddleware(methods, origin string) Middleware {
 
 func HttpLogMiddleware(next Handler) Handler {
 	return func(ctx *Context) {
-		logHttp(ctx.Req, ctx.Res, "incoming request")
+		log.Printf(
+			"[PHX] [%s] request from %s to (%s) %s",
+			ctx.Res.Header().Get("status"),
+			ctx.Req.RemoteAddr,
+			ctx.Req.Method,
+			ctx.Req.RequestURI)
 		next(ctx)
 	}
 }
