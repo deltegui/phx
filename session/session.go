@@ -55,9 +55,9 @@ func (store *MemoryStore) Save(entry Entry) {
 
 func (store *MemoryStore) Get(id Id) (Entry, error) {
 	store.mutex.Lock()
-	fmt.Println("Number of sessions: ", len(store.values))
+	log.Println("[MemoryStore] number of sessions", len(store.values))
 	for key := range store.values {
-		fmt.Println("Available id : ", key)
+		log.Println("[MemoryStore] Available id : ", key)
 	}
 	entry, ok := store.values[id]
 	store.mutex.Unlock()

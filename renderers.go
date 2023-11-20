@@ -11,9 +11,13 @@ import (
 	"github.com/deltegui/phx/localizer"
 )
 
-func (ctx *Context) String(data string, a ...any) {
-	ctx.Res.WriteHeader(http.StatusOK)
+func (ctx *Context) String(status int, data string, a ...any) {
+	ctx.Res.WriteHeader(status)
 	fmt.Fprintf(ctx.Res, data, a...)
+}
+
+func (ctx *Context) StringOK(data string, a ...any) {
+	ctx.String(http.StatusOK, data, a...)
 }
 
 func (ctx *Context) Json(status int, data interface{}) {
@@ -28,6 +32,10 @@ func (ctx *Context) Json(status int, data interface{}) {
 	ctx.Res.Write(response)
 }
 
+func (ctx *Context) JsonOK(data interface{}) {
+	ctx.Json(http.StatusOK, data)
+}
+
 func (ctx *Context) Render(status int, parsed string, vm interface{}) {
 	ctx.Res.WriteHeader(status)
 	model := ctx.createViewModel(parsed, vm)
@@ -39,6 +47,10 @@ func (ctx *Context) Render(status int, parsed string, vm interface{}) {
 	if err := template.Execute(ctx.Res, model); err != nil {
 		log.Printf("[PHX] Error executing tempalte with parsed name '%s': %s\n", parsed, err)
 	}
+}
+
+func (ctx *Context) RenderOK(parsed string, vm interface{}) {
+	ctx.Render(http.StatusOK, parsed, vm)
 }
 
 func (ctx *Context) RenderWithErrors(status int, parsed string, vm interface{}, formErrors map[string]string) {
