@@ -3,6 +3,7 @@ package phx
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
@@ -148,6 +149,12 @@ func (r *Router) Use(middleware Middleware) {
 
 func (r *Router) Handle(method, pattern string, builder Builder, middlewares ...Middleware) {
 	h := r.injector.ResolveHandler(builder)
+	for _, m := range r.middlewares {
+		h = m(h)
+	}
+	for _, m := range middlewares {
+		h = m(h)
+	}
 	r.router.Handle(method, pattern, func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		ctx := r.createContext(w, req, params)
 		h(ctx)
@@ -267,4 +274,8 @@ func (ctx *Context) ChangeLanguage(to string) {
 
 func (ctx *Context) Validate(s any) map[string]string {
 	return ctx.validate(s)
+}
+
+func (ctx *Context) ParseJson(dst any) error {
+	return json.NewDecoder(ctx.Req.Body).Decode(dst)
 }
