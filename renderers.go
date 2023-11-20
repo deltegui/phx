@@ -27,7 +27,7 @@ func (ctx *Context) Json(status int, data interface{}) {
 		log.Println("[PHX] Error marshaling data: ", err)
 		return
 	}
-	ctx.Res.WriteHeader(http.StatusBadRequest)
+	ctx.Res.WriteHeader(status)
 	ctx.Res.Header().Set("Content-Type", "application/json")
 	ctx.Res.Write(response)
 }
