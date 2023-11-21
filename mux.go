@@ -225,6 +225,23 @@ func (ctx *Context) GetUser() session.User {
 	return getUser(ctx.Req)
 }
 
+func (ctx *Context) HaveSession() bool {
+	_, err := ctx.ReadSessionCookie()
+	return err == nil
+}
+
+func (ctx *Context) Localize(file, key string) string {
+	return ctx.locstore.GetUsingRequest(file, ctx.Req).Get(key)
+}
+
+func (ctx *Context) LocalizeError(err core.UseCaseError) string {
+	return ctx.locstore.GetLocalizedError(err, ctx.Req)
+}
+
+func (ctx *Context) LocalizeWithoutShared(file, key string) string {
+	return ctx.locstore.GetUsingRequestWithoutShared(file, ctx.Req).Get(key)
+}
+
 func (r *Router) Use(middleware Middleware) {
 	r.middlewares = append(r.middlewares, middleware)
 }
