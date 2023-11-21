@@ -348,8 +348,12 @@ func (ctx *Context) RedirectCode(to string, code int) {
 	http.Redirect(ctx.Res, ctx.Req, to, code)
 }
 
-func (ctx *Context) GetParam(name string) string {
+func (ctx *Context) GetUrlParam(name string) string {
 	return ctx.params.ByName(name)
+}
+
+func (ctx *Context) GetQueryParam(name string) string {
+	return ctx.Req.URL.Query().Get(name)
 }
 
 func (ctx *Context) GetCurrentLanguage() string {
