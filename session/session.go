@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/deltegui/phx/core"
+	"github.com/deltegui/phx/cypher"
 )
 
 type Id string
@@ -77,21 +78,24 @@ type Manager struct {
 	store           SessionStore
 	hasher          core.Hasher
 	timeoutDuration time.Duration
+	cypher          core.Cypher
 }
 
-func NewManager(store SessionStore, hasher core.Hasher, duration time.Duration) *Manager {
+func NewManager(store SessionStore, hasher core.Hasher, duration time.Duration, cypher core.Cypher) *Manager {
 	return &Manager{
 		store:           store,
 		hasher:          hasher,
 		timeoutDuration: duration,
+		cypher:          cypher,
 	}
 }
 
-func NewInMemoryManager(hasher core.Hasher, duration time.Duration) *Manager {
+func NewInMemoryManager(hasher core.Hasher, duration time.Duration, cypher core.Cypher) *Manager {
 	return NewManager(
 		NewMemoryStore(),
 		hasher,
-		duration)
+		duration,
+		cypher)
 }
 
 func (manager *Manager) Add(user User) Entry {
@@ -142,9 +146,13 @@ const cookieKey string = "phx_session"
 func (manager *Manager) CreateSessionCookie(w http.ResponseWriter, user User) {
 	entry := manager.Add(user)
 	age := 24 * time.Hour
+	encoded, err := cypher.EncodeCookie(manager.cypher, string(entry.Id))
+	if err != nil {
+		log.Println("Cannot encrypt session cookie:", err)
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     cookieKey,
-		Value:    string(entry.Id),
+		Value:    encoded,
 		Expires:  time.Now().Add(age),
 		MaxAge:   int(age.Seconds()),
 		Path:     "/",
@@ -152,16 +160,20 @@ func (manager *Manager) CreateSessionCookie(w http.ResponseWriter, user User) {
 	})
 }
 
-func readSessionId(req *http.Request) (Id, *http.Cookie, error) {
+func readSessionId(req *http.Request, cy core.Cypher) (Id, *http.Cookie, error) {
 	cookie, err := req.Cookie(cookieKey)
 	if err != nil {
 		return Id(""), nil, fmt.Errorf("no session cookie is present in the request")
 	}
-	return Id(cookie.Value), cookie, nil
+	id, err := cypher.DecodeCookie(cy, cookie.Value)
+	if err != nil {
+		return Id(""), nil, err
+	}
+	return Id(id), cookie, nil
 }
 
 func (manager *Manager) ReadSessionCookie(req *http.Request) (User, error) {
-	sessionId, cookie, err := readSessionId(req)
+	sessionId, cookie, err := readSessionId(req, manager.cypher)
 	if err != nil {
 		return User{}, err
 	}
@@ -176,7 +188,7 @@ func (manager *Manager) ReadSessionCookie(req *http.Request) (User, error) {
 }
 
 func (manager *Manager) DestroySession(w http.ResponseWriter, req *http.Request) error {
-	session, _, err := readSessionId(req)
+	session, _, err := readSessionId(req, manager.cypher)
 	if err != nil {
 		return err
 	}

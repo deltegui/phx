@@ -16,7 +16,7 @@ type Hasher interface {
 
 type Cypher interface {
 	Encrypt(data []byte) ([]byte, error)
-	UnEncrypt(data []byte) ([]byte, error)
+	Decrypt(data []byte) ([]byte, error)
 }
 
 type Role int

@@ -3,7 +3,6 @@ package phx
 import (
 	"context"
 	"embed"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -65,26 +64,17 @@ func (r *Router) UseTemplate(fs embed.FS) {
 }
 
 func (r *Router) UseLocalization(files embed.FS, sharedKey, errorsKey string) {
-	loc := localizer.NewLocalizerStore(files, sharedKey, errorsKey)
+	var cypher core.Cypher
+	cypher = r.injector.GetByType(reflect.TypeOf(&cypher).Elem()).(core.Cypher)
+	loc := localizer.NewLocalizerStore(files, sharedKey, errorsKey, cypher)
 	r.locstore = &loc
 }
 
 func (r *Router) UseCsrf(expires time.Duration) {
-	r.csrf = csrf.New(expires)
+	var cypher core.Cypher
+	cypher = r.injector.GetByType(reflect.TypeOf(&cypher).Elem()).(core.Cypher)
+	r.csrf = csrf.New(expires, cypher)
 	r.middlewares = append(r.middlewares, csrfMiddleware(r.csrf))
-}
-
-func (r *Router) UseCsrfWithPassword(expires time.Duration, pass string) {
-	bytes, err := base64.RawStdEncoding.DecodeString(pass)
-	if err != nil {
-		log.Panicln("Error decoding csrf password from base64:", err)
-	}
-	r.csrf = csrf.NewWithPassword(expires, bytes)
-	r.middlewares = append(r.middlewares, csrfMiddleware(r.csrf))
-}
-
-func GenerateCsrfPassword() string {
-	return base64.RawStdEncoding.EncodeToString(csrf.GenerateRandomPass())
 }
 
 func (r *Router) UseCors(methods, origin string) {
@@ -179,7 +169,9 @@ func (r *Router) UseSessionPostgres(db *sqlx.DB, duration time.Duration) {
 func (r *Router) UseSession(provider session.SessionStore, duration time.Duration) {
 	var hasher core.Hasher
 	hasher = r.injector.GetByType(reflect.TypeOf(&hasher).Elem()).(core.Hasher)
-	r.sessions = session.NewManager(provider, hasher, duration)
+	var cypher core.Cypher
+	cypher = r.injector.GetByType(reflect.TypeOf(&cypher).Elem()).(core.Cypher)
+	r.sessions = session.NewManager(provider, hasher, duration, cypher)
 }
 
 func (r *Router) UseSessionAuth() {
@@ -361,11 +353,11 @@ func (ctx *Context) GetParam(name string) string {
 }
 
 func (ctx *Context) GetCurrentLanguage() string {
-	return localizer.ReadCookie(ctx.Req)
+	return ctx.locstore.ReadCookie(ctx.Req)
 }
 
 func (ctx *Context) ChangeLanguage(to string) {
-	localizer.CreateCookie(ctx.Res, to)
+	ctx.locstore.CreateCookie(ctx.Res, to)
 }
 
 func (ctx *Context) Validate(s any) map[string]string {

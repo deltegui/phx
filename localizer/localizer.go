@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/deltegui/phx/core"
+	"github.com/deltegui/phx/cypher"
 )
 
 type Localizer map[string]string
@@ -37,10 +38,11 @@ type LocalizerStore struct {
 	files     embed.FS
 	sharedKey string
 	errorsKey string
+	cypher    core.Cypher
 }
 
-func NewLocalizerStore(files embed.FS, sharedKey, errorsKey string) LocalizerStore {
-	return LocalizerStore{files, sharedKey, errorsKey}
+func NewLocalizerStore(files embed.FS, sharedKey, errorsKey string, cypher core.Cypher) LocalizerStore {
+	return LocalizerStore{files, sharedKey, errorsKey, cypher}
 }
 
 func (ls LocalizerStore) loadFile(file string) i18n {
@@ -83,17 +85,17 @@ func mergeLocalizers(dst, origin Localizer) {
 }
 
 func (ls LocalizerStore) GetUsingRequest(key string, req *http.Request) Localizer {
-	lang := ReadCookie(req)
+	lang := ls.ReadCookie(req)
 	return ls.Get(key, lang)
 }
 
 func (ls LocalizerStore) GetUsingRequestWithoutShared(key string, req *http.Request) Localizer {
-	lang := ReadCookie(req)
+	lang := ls.ReadCookie(req)
 	return ls.GetWithoutShared(key, lang)
 }
 
 func (ls LocalizerStore) GetLocalizedError(err core.UseCaseError, req *http.Request) string {
-	lang := ReadCookie(req)
+	lang := ls.ReadCookie(req)
 	key := strconv.Itoa(int(err.Code))
 	return ls.GetWithoutShared(ls.errorsKey, lang)[key]
 }
@@ -106,19 +108,35 @@ func (ls LocalizerStore) LoadIntoField(field **Localizer, key string, language s
 }
 
 func (ls LocalizerStore) LoadIntoFieldUsingRequest(field **Localizer, key string, req *http.Request) {
-	lang := ReadCookie(req)
+	lang := ls.ReadCookie(req)
 	ls.LoadIntoField(field, key, lang)
 }
 
-func ReadCookie(req *http.Request) string {
-	cookie, err := req.Cookie(cookieKey)
+func (ls LocalizerStore) CreateCookie(w http.ResponseWriter, localization string) {
+	CreateCookie(w, localization, ls.cypher)
+}
+
+func (ls LocalizerStore) ReadCookie(req *http.Request) string {
+	lang, err := ReadCookie(req, ls.cypher)
 	if err != nil {
 		return fallbackLanguage
 	}
-	return cookie.Value
+	return lang
 }
 
-func CreateCookie(w http.ResponseWriter, localization string) {
+func ReadCookie(req *http.Request, cy core.Cypher) (string, error) {
+	cookie, err := req.Cookie(cookieKey)
+	if err != nil {
+		return fallbackLanguage, nil
+	}
+	langBytes, err := cypher.DecodeCookie(cy, cookie.Value)
+	if err != nil {
+		return "", fmt.Errorf("cannot read language cookie: %s", err)
+	}
+	return string(langBytes), nil
+}
+
+func CreateCookie(w http.ResponseWriter, localization string, cy core.Cypher) error {
 	lang := fallbackLanguage
 	for _, supported := range suppoertedLangauges {
 		if localization == supported {
@@ -127,13 +145,18 @@ func CreateCookie(w http.ResponseWriter, localization string) {
 		}
 	}
 	log.Printf("Creating language cookie for lang; '%s'", lang)
+	encode, err := cypher.EncodeCookie(cy, lang)
+	if err != nil {
+		return fmt.Errorf("cannot create language cookie: %s", err)
+	}
 	age := 24 * time.Hour
 	http.SetCookie(w, &http.Cookie{
 		Name:     cookieKey,
-		Value:    lang,
+		Value:    encode,
 		Expires:  time.Now().Add(age),
 		MaxAge:   int(age.Seconds()),
 		Path:     "/",
 		SameSite: http.SameSiteDefaultMode,
 	})
+	return nil
 }

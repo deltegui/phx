@@ -1,88 +1,47 @@
 package csrf
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/rand"
-	"encoding/base64"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/deltegui/phx/core"
+	"github.com/deltegui/phx/cypher"
 )
 
 const CsrfHeaderName string = "X-Csrf-Token"
 
 type Csrf struct {
-	cipher  cipher.AEAD
+	cipher  core.Cypher
 	expires time.Duration
 }
 
-func New(expires time.Duration) *Csrf {
+func New(expires time.Duration, cipher core.Cypher) *Csrf {
 	return &Csrf{
-		cipher:  generateCipher(GenerateRandomPass()),
+		cipher:  cipher,
 		expires: expires,
 	}
-}
-
-func NewWithPassword(expires time.Duration, pass []byte) *Csrf {
-	return &Csrf{
-		cipher:  generateCipher(pass),
-		expires: expires,
-	}
-}
-
-func GenerateRandomPass() []byte {
-	bytes := make([]byte, 32) //generate a random 32 byte key for AES-256
-	if _, err := rand.Read(bytes); err != nil {
-		log.Fatalln("Cannot generate random key for aes encryptation in CSRF", err)
-	}
-	return bytes
-}
-
-func generateCipher(pass []byte) cipher.AEAD {
-	if len(pass) != 32 {
-		log.Fatalln("The csrf encrypt password must be 32 bit long")
-	}
-	aes, err := aes.NewCipher(pass)
-	if err != nil {
-		log.Fatalln("Cannot create cipher for CSRF", err)
-	}
-	gcm, err := cipher.NewGCM(aes)
-	if err != nil {
-		log.Fatalln("Cannot create CGM:", err)
-	}
-	return gcm
 }
 
 func (csrf *Csrf) encrypt(raw string) string {
-	//Create a nonce. Nonce should be from GCM
-	nonce := make([]byte, csrf.cipher.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		log.Println("Cannot read from rand:", err)
+	encoded, err := cypher.EncodeCookie(csrf.cipher, raw)
+	if err != nil {
+		log.Println("Cannot encode csrf token:", err)
+		return ""
 	}
-	dst := csrf.cipher.Seal(nonce, nonce, []byte(raw), nil)
-	return base64.RawURLEncoding.EncodeToString(dst)
+	return encoded
 }
 
 func (csrf *Csrf) decrypt(token string) (string, error) {
-	bytes, err := base64.RawURLEncoding.DecodeString(token)
+	decoded, err := cypher.DecodeCookie(csrf.cipher, token)
 	if err != nil {
-		return "", fmt.Errorf("cannot decode base64 csrf token: %s", err)
+		return "", fmt.Errorf("cannot decode csrf token: %s", err)
 	}
-	nonceSize := csrf.cipher.NonceSize()
-	if len(bytes) < nonceSize {
-		return "", fmt.Errorf("malformed csrf token")
-	}
-	nonce, ciphertext := bytes[:nonceSize], bytes[nonceSize:]
-	plaintext, err := csrf.cipher.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return "", fmt.Errorf("cannot decrypt csrf token: %s", err)
-	}
-	return string(plaintext), nil
+	return decoded, nil
 }
 
 func (csrf Csrf) Generate() string {
