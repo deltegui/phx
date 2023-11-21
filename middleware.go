@@ -145,9 +145,9 @@ func corsMiddleware(methods, origin string) Middleware {
 func HttpLogMiddleware(next Handler) Handler {
 	return func(ctx *Context) {
 		log.Printf(
-			"[PHX] [%s] request from %s to (%s) %s",
-			ctx.Res.Header().Get("status"),
+			"[PHX] request from %s (%s) to (%s) %s",
 			ctx.Req.RemoteAddr,
+			ctx.Req.UserAgent(),
 			ctx.Req.Method,
 			ctx.Req.RequestURI)
 		next(ctx)
