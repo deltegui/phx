@@ -23,17 +23,31 @@ type Csrf struct {
 
 func New(expires time.Duration) *Csrf {
 	return &Csrf{
-		cipher:  generateCipher(),
+		cipher:  generateCipher(GenerateRandomPass()),
 		expires: expires,
 	}
 }
 
-func generateCipher() cipher.AEAD {
+func NewWithPassword(expires time.Duration, pass []byte) *Csrf {
+	return &Csrf{
+		cipher:  generateCipher(pass),
+		expires: expires,
+	}
+}
+
+func GenerateRandomPass() []byte {
 	bytes := make([]byte, 32) //generate a random 32 byte key for AES-256
 	if _, err := rand.Read(bytes); err != nil {
 		log.Fatalln("Cannot generate random key for aes encryptation in CSRF", err)
 	}
-	aes, err := aes.NewCipher(bytes)
+	return bytes
+}
+
+func generateCipher(pass []byte) cipher.AEAD {
+	if len(pass) != 32 {
+		log.Fatalln("The csrf encrypt password must be 32 bit long")
+	}
+	aes, err := aes.NewCipher(pass)
 	if err != nil {
 		log.Fatalln("Cannot create cipher for CSRF", err)
 	}
