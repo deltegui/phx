@@ -18,6 +18,7 @@ import (
 	"github.com/deltegui/phx/csrf"
 	"github.com/deltegui/phx/hash"
 	"github.com/deltegui/phx/localizer"
+	"github.com/deltegui/phx/pagination"
 	"github.com/deltegui/phx/persistence"
 	"github.com/deltegui/phx/session"
 	"github.com/deltegui/phx/validator"
@@ -228,6 +229,14 @@ func (ctx *Context) GetUser() session.User {
 func (ctx *Context) HaveSession() bool {
 	_, err := ctx.ReadSessionCookie()
 	return err == nil
+}
+
+func (ctx *Context) PaginationToVM(pag pagination.Pagination) pagination.ViewModel {
+	return pagination.PaginationToVM(pag, ctx.GetLocalizer("common/pagination"))
+}
+
+func (ctx *Context) GetLocalizer(file string) localizer.Localizer {
+	return ctx.locstore.GetUsingRequest(file, ctx.Req)
 }
 
 func (ctx *Context) Localize(file, key string) string {

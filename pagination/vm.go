@@ -3,7 +3,6 @@ package pagination
 import (
 	"fmt"
 	"math"
-	"net/http"
 
 	"github.com/deltegui/phx/localizer"
 )
@@ -20,7 +19,6 @@ type ViewModel struct {
 	ShowPreviousButton bool
 	ShowNextButton     bool
 	loc                localizer.Localizer
-	paginationLoc      string
 }
 
 func (vm ViewModel) GetMessageOfElements() string {
@@ -45,7 +43,7 @@ func (vm ViewModel) ToDto() Pagination {
 	}
 }
 
-func PaginationToVM(p Pagination, req *http.Request, loc localizer.Localizer) ViewModel {
+func PaginationToVM(p Pagination, loc localizer.Localizer) ViewModel {
 	const margin int = 4
 	startElement := ((p.CurrentPage - 1) * p.ElementsPerPage)
 	lastPage := int(math.Ceil(float64(p.TotalElements) / float64(p.ElementsPerPage)))
