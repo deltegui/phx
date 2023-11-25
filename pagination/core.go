@@ -9,7 +9,7 @@ type Order int
 
 const (
 	OrderDescending Order = 0
-	OrderAscending        = 1
+	OrderAscending  Order = 1
 )
 
 type Pagination struct {
@@ -18,4 +18,5 @@ type Pagination struct {
 	TotalElements   int
 	Order           Order
 	OrderBy         string
+	Enabeld         bool
 }
