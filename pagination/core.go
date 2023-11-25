@@ -20,3 +20,13 @@ type Pagination struct {
 	OrderBy         string
 	Enabeld         bool
 }
+
+type Findable[ENTITY any, FILTER any] interface {
+	Find(FILTER, Pagination) (List[ENTITY], error)
+	FindFiltered(FILTER) (List[ENTITY], error)
+	FindPaginated(Pagination) (List[ENTITY], error)
+	FindFirstPage() (List[ENTITY], error)
+	FindAll() ([]ENTITY, error)
+	FindAllFiltered(FILTER) ([]ENTITY, error)
+	FindOne(id int) (ENTITY, error)
+}
