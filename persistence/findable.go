@@ -41,6 +41,7 @@ func NewFindable[ENTITY any, FILTER any](
 		SQLDao:          NewDao(db),
 		buildFindSql:    buildFindSql,
 		buildOrderBySql: buildOrderBySql,
+		elementsPerPage: elementsPerPage,
 	}
 }
 
