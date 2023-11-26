@@ -40,6 +40,7 @@ func (vm ViewModel) GetPreviousTag() string {
 func (vm ViewModel) ToDto() Pagination {
 	return Pagination{
 		CurrentPage: vm.CurrentPage,
+		Enabeld:     true,
 	}
 }
 
