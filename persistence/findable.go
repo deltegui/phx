@@ -52,7 +52,7 @@ func NewFindableDefault[ENTITY any, FILTER any](
 	return NewFindable[ENTITY, FILTER](db, buildFindSql, buildOrderBySql, 20)
 }
 
-func setFilterId[FILTER any](filter *FILTER, id int) error {
+func setFilterId[FILTER any](filter *FILTER, id int64) error {
 	val := reflect.ValueOf(filter)
 	val = val.Elem()
 	if val.Type().Kind() != reflect.Struct {
@@ -71,14 +71,14 @@ func setFilterId[FILTER any](filter *FILTER, id int) error {
 		if !field.CanSet() {
 			return fmt.Errorf("cant set Id pointer field")
 		}
-		ptr := new(int)
+		ptr := new(int64)
 		*ptr = id
 		field.Set(reflect.ValueOf(ptr))
 		return nil
 	}
 
 	if !field.CanSet() {
-		return fmt.Errorf("cant set Id int field")
+		return fmt.Errorf("cant set Id int64 field")
 	}
 	i64 := int64(id)
 	if field.OverflowInt(i64) {
@@ -88,7 +88,7 @@ func setFilterId[FILTER any](filter *FILTER, id int) error {
 	return nil
 }
 
-func (repo Findable[ENTITY, FILTER]) Exists(id int) bool {
+func (repo Findable[ENTITY, FILTER]) Exists(id int64) bool {
 	filter := new(FILTER)
 	if err := setFilterId[FILTER](filter, id); err != nil {
 		return false
@@ -100,7 +100,7 @@ func (repo Findable[ENTITY, FILTER]) Exists(id int) bool {
 	return len(list.Items) > 0
 }
 
-func (repo Findable[ENTITY, FILTER]) FindOne(id int) (out ENTITY, err error) {
+func (repo Findable[ENTITY, FILTER]) FindOne(id int64) (out ENTITY, err error) {
 	filter := new(FILTER)
 	if err = setFilterId[FILTER](filter, id); err != nil {
 		return

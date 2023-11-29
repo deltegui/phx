@@ -28,6 +28,6 @@ type Findable[ENTITY any, FILTER any] interface {
 	FindFirstPage() (List[ENTITY], error)
 	FindAll() ([]ENTITY, error)
 	FindAllFiltered(FILTER) ([]ENTITY, error)
-	FindOne(id int) (ENTITY, error)
-	Exists(id int) bool
+	FindOne(id int64) (ENTITY, error)
+	Exists(id int64) bool
 }
