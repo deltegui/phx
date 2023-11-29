@@ -29,4 +29,5 @@ type Findable[ENTITY any, FILTER any] interface {
 	FindAll() ([]ENTITY, error)
 	FindAllFiltered(FILTER) ([]ENTITY, error)
 	FindOne(id int) (ENTITY, error)
+	Exists(id int) bool
 }
