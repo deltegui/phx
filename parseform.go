@@ -141,7 +141,6 @@ func setBool(field reflect.Value, value string, isPointer bool) bool {
 	} else {
 		field.Set(reflect.ValueOf(b))
 	}
-	field.Set(reflect.ValueOf(b))
 	return true
 }
 
