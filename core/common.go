@@ -19,11 +19,11 @@ type Cypher interface {
 	Decrypt(data []byte) ([]byte, error)
 }
 
-type Role int
+type Role int64
 
 const (
-	RoleAdmin Role = iota
-	RoleUser
+	RoleAdmin Role = 1
+	RoleUser  Role = 2
 )
 
 type UseCaseError struct {

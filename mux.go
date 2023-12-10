@@ -19,10 +19,8 @@ import (
 	"github.com/deltegui/phx/hash"
 	"github.com/deltegui/phx/localizer"
 	"github.com/deltegui/phx/pagination"
-	"github.com/deltegui/phx/persistence"
 	"github.com/deltegui/phx/session"
 	"github.com/deltegui/phx/validator"
-	"github.com/jmoiron/sqlx"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -161,10 +159,6 @@ func (r *Router) PopulateStruct(s interface{}) {
 
 func (r *Router) UseSessionInMemory(duration time.Duration) {
 	r.UseSession(session.NewMemoryStore(), duration)
-}
-
-func (r *Router) UseSessionPostgres(db *sqlx.DB, duration time.Duration) {
-	r.UseSession(persistence.NewSessionStore(db), duration)
 }
 
 func (r *Router) UseSession(provider session.SessionStore, duration time.Duration) {

@@ -62,6 +62,59 @@ func (ctx *Context) RenderWithErrors(status int, parsed string, vm interface{}, 
 	}
 }
 
+type SelectItem struct {
+	Value    string
+	Tag      string
+	Selected bool
+}
+
+type SelectList struct {
+	Name     string
+	Multiple bool
+	Items    []SelectItem
+}
+
+func createSelectListViewModel(loc localizer.Localizer, name string, items []SelectItem, multiple bool) ViewModel {
+	list := SelectList{
+		Name:     name,
+		Multiple: multiple,
+		Items:    items,
+	}
+	return ViewModel{
+		Model:     list,
+		Localizer: loc,
+	}
+}
+
+func createYesNoSelectListViewModel(loc localizer.Localizer, name string, value *bool) ViewModel {
+	items := []SelectItem{
+		{
+			Value:    "",
+			Tag:      "shared.choose",
+			Selected: value == nil,
+		},
+		{
+			Value:    "1",
+			Tag:      "shared.yes",
+			Selected: value != nil && *value,
+		},
+		{
+			Value:    "0",
+			Tag:      "shared.no",
+			Selected: value != nil && !*value,
+		},
+	}
+	list := SelectList{
+		Name:     name,
+		Multiple: false,
+		Items:    items,
+	}
+	return ViewModel{
+		Model:     list,
+		Localizer: loc,
+	}
+}
+
 func (r *Router) AddDefaultTemplateFunctions() {
 	r.tmplFuncs = map[string]any{
 		"Uppercase": func(v string) string {
@@ -79,7 +132,24 @@ func (r *Router) AddDefaultTemplateFunctions() {
 				return "No"
 			}
 		},
+		"SelectList": func(loc localizer.Localizer, name string, items []SelectItem) ViewModel {
+			return createSelectListViewModel(loc, name, items, false)
+		},
+		"MultipleSelectList": func(loc localizer.Localizer, name string, items []SelectItem) ViewModel {
+			return createSelectListViewModel(loc, name, items, true)
+		},
+		"YesNoSelectList": createYesNoSelectListViewModel,
 	}
+}
+
+// AddTemplateFunction registers a new template function. If you want to have
+// default template functions you must call AddDefaultTemplateFunctions before
+// call this funciton
+func (r *Router) AddTemplateFunction(name string, f any) {
+	if r.tmplFuncs == nil {
+		r.tmplFuncs = map[string]any{}
+	}
+	r.tmplFuncs[name] = f
 }
 
 func (r *Router) Parse(name, main string, patterns ...string) {
@@ -109,6 +179,7 @@ type ViewModel struct {
 	Localizer  localizer.Localizer
 	FormErrors map[string]string
 	CsrfToken  string
+	Ctx        *Context
 }
 
 func (ctx *Context) createViewModel(name string, model interface{}) ViewModel {
@@ -124,6 +195,7 @@ func (ctx *Context) createViewModel(name string, model interface{}) ViewModel {
 		Model:     model,
 		CsrfToken: csrfToken,
 		Localizer: loc,
+		Ctx:       ctx,
 	}
 }
 
