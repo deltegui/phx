@@ -89,6 +89,14 @@ func (r *Router) UseStaticEmbedded(fs embed.FS) {
 	r.router.NotFound = http.FileServer(http.FS(fs))
 }
 
+func (r *Router) UseStaticMount(url, path string) {
+	r.router.ServeFiles(fmt.Sprintf("%s/*filepath", url), http.Dir(path))
+}
+
+func (r *Router) UseStaticMountEmbedded(url string, fs embed.FS) {
+	r.router.ServeFiles(fmt.Sprintf("%s/*filepath", url), http.FS(fs))
+}
+
 func NewRouter() *Router {
 	return &Router{
 		injector:    NewInjector(),

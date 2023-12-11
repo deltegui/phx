@@ -132,10 +132,16 @@ func (r *Router) AddDefaultTemplateFunctions() {
 				return "No"
 			}
 		},
-		"SelectList": func(loc localizer.Localizer, name string, items []SelectItem) ViewModel {
+		"SelectList": func(loc localizer.Localizer, list SelectList) ViewModel {
+			return ViewModel{
+				Localizer: loc,
+				Model:     list,
+			}
+		},
+		"CreateSelectList": func(loc localizer.Localizer, name string, items []SelectItem) ViewModel {
 			return createSelectListViewModel(loc, name, items, false)
 		},
-		"MultipleSelectList": func(loc localizer.Localizer, name string, items []SelectItem) ViewModel {
+		"CreateMultipleSelectList": func(loc localizer.Localizer, name string, items []SelectItem) ViewModel {
 			return createSelectListViewModel(loc, name, items, true)
 		},
 		"YesNoSelectList": createYesNoSelectListViewModel,
