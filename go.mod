@@ -4,7 +4,6 @@ go 1.21.4
 
 require (
 	github.com/go-playground/validator/v10 v10.16.0
-	github.com/jmoiron/sqlx v1.3.5
 	github.com/julienschmidt/httprouter v1.3.0
 	golang.org/x/crypto v0.15.0
 )

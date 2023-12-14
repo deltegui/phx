@@ -15,9 +15,10 @@ import (
 type Id string
 
 type User struct {
-	Id   int64
-	Name string
-	Role core.Role
+	Id    int64
+	Name  string
+	Role  core.Role
+	Image string
 }
 
 type Entry struct {
