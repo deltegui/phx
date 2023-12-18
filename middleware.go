@@ -123,7 +123,7 @@ func csrfMiddleware(csrf *csrf.Csrf) Middleware {
 				return next(ctx)
 			}
 			ctx.Res.WriteHeader(http.StatusForbidden)
-			return fmt.Errorf("Expired csrf token")
+			return fmt.Errorf("expired csrf token")
 		}
 	}
 }
