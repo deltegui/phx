@@ -11,55 +11,68 @@ import (
 	"github.com/deltegui/phx/localizer"
 )
 
-func (ctx *Context) String(status int, data string, a ...any) {
+func (ctx *Context) String(status int, data string, a ...any) error {
 	ctx.Res.WriteHeader(status)
 	fmt.Fprintf(ctx.Res, data, a...)
+	return nil
 }
 
-func (ctx *Context) StringOK(data string, a ...any) {
-	ctx.String(http.StatusOK, data, a...)
+func (ctx *Context) BadRequest(data string, a ...any) error {
+	return ctx.String(http.StatusBadRequest, data, a...)
 }
 
-func (ctx *Context) Json(status int, data interface{}) {
+func (ctx *Context) NotFound(data string, a ...any) error {
+	return ctx.String(http.StatusNotFound, data, a...)
+}
+
+func (ctx *Context) OK(data string, a ...any) error {
+	return ctx.String(http.StatusOK, data, a...)
+}
+
+func (ctx *Context) InternalServerError(data string, a ...any) error {
+	return ctx.String(http.StatusInternalServerError, data, a...)
+}
+
+func (ctx *Context) Json(status int, data any) error {
 	response, err := json.Marshal(data)
 	if err != nil {
-		ctx.Res.WriteHeader(http.StatusInternalServerError)
-		log.Println("[PHX] Error marshaling data: ", err)
-		return
+		return fmt.Errorf("error marshaling data: %s", err)
 	}
 	ctx.Res.WriteHeader(status)
 	ctx.Res.Header().Set("Content-Type", "application/json")
 	ctx.Res.Write(response)
+	return nil
 }
 
-func (ctx *Context) JsonOK(data interface{}) {
-	ctx.Json(http.StatusOK, data)
+func (ctx *Context) JsonOK(data interface{}) error {
+	return ctx.Json(http.StatusOK, data)
 }
 
-func (ctx *Context) Render(status int, parsed string, vm interface{}) {
+func (ctx *Context) Render(status int, parsed string, vm interface{}) error {
 	ctx.Res.WriteHeader(status)
 	model := ctx.createViewModel(parsed, vm)
 	template, ok := ctx.tmpl[parsed]
 	if !ok {
-		log.Println("[PHX] Error executing template with parsed name:", parsed, ". It does not exists")
-		return
+		return fmt.Errorf("error executing template with parsed name: '%s'. It does not exists", parsed)
 	}
 	if err := template.Execute(ctx.Res, model); err != nil {
-		log.Printf("[PHX] Error executing tempalte with parsed name '%s': %s\n", parsed, err)
+		return fmt.Errorf("error executing tempalte with parsed name '%s': %s", parsed, err)
 	}
+	return nil
 }
 
-func (ctx *Context) RenderOK(parsed string, vm interface{}) {
-	ctx.Render(http.StatusOK, parsed, vm)
+func (ctx *Context) RenderOK(parsed string, vm interface{}) error {
+	return ctx.Render(http.StatusOK, parsed, vm)
 }
 
-func (ctx *Context) RenderWithErrors(status int, parsed string, vm interface{}, formErrors map[string]string) {
+func (ctx *Context) RenderWithErrors(status int, parsed string, vm interface{}, formErrors map[string]string) error {
 	ctx.Res.WriteHeader(status)
 	model := ctx.createViewModel(parsed, vm)
 	model.FormErrors = formErrors
 	if err := ctx.tmpl[parsed].Execute(ctx.Res, model); err != nil {
-		log.Printf("[PHX] Error executing tempalte with parsed name '%s': %s\n", parsed, err)
+		return fmt.Errorf("error executing tempalte with parsed name '%s': %s", parsed, err)
 	}
+	return nil
 }
 
 type SelectItem struct {

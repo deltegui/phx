@@ -26,7 +26,7 @@ import (
 
 type Middleware func(Handler) Handler
 
-type Handler func(c *Context)
+type Handler func(c *Context) error
 
 type Context struct {
 	Req    *http.Request
@@ -42,9 +42,10 @@ type Context struct {
 
 type Router struct {
 	// core router
-	injector    *Injector
-	router      *httprouter.Router
-	middlewares []Middleware
+	injector     *Injector
+	router       *httprouter.Router
+	middlewares  []Middleware
+	ErrorHandler func(*Context, error)
 
 	// template variables
 	tmpl      map[string]*template.Template
@@ -102,13 +103,19 @@ func (r *Router) UseStaticMountEmbedded(url string, fs embed.FS) {
 	r.router.ServeFiles(fmt.Sprintf("%s/*filepath", url), http.FS(fs))
 }
 
+func defaultErrorHandler(ctx *Context, err error) {
+	log.Println("[PHX] Error:", err)
+	ctx.InternalServerError(err.Error())
+}
+
 func NewRouter() *Router {
 	return &Router{
-		injector:    NewInjector(),
-		router:      httprouter.New(),
-		middlewares: []Middleware{},
-		tmpl:        make(map[string]*template.Template),
-		validate:    validator.New(),
+		injector:     NewInjector(),
+		router:       httprouter.New(),
+		middlewares:  []Middleware{},
+		ErrorHandler: defaultErrorHandler,
+		tmpl:         make(map[string]*template.Template),
+		validate:     validator.New(),
 	}
 }
 
@@ -126,12 +133,13 @@ func preflightCorsHanlder(methods, origin, headers string) http.Handler {
 
 func NewRouterFromOther(r *Router) *Router {
 	return &Router{
-		injector:    r.injector,
-		router:      httprouter.New(),
-		middlewares: r.middlewares,
-		tmpl:        make(map[string]*template.Template),
-		csrf:        r.csrf,
-		locstore:    r.locstore,
+		injector:     r.injector,
+		router:       httprouter.New(),
+		ErrorHandler: r.ErrorHandler,
+		middlewares:  r.middlewares,
+		tmpl:         make(map[string]*template.Template),
+		csrf:         r.csrf,
+		locstore:     r.locstore,
 	}
 }
 
@@ -368,8 +376,9 @@ func (r Router) Run(address string) {
 
 func Redirect(to string) func() Handler {
 	return func() Handler {
-		return func(c *Context) {
+		return func(c *Context) error {
 			http.RedirectHandler(to, http.StatusTemporaryRedirect).ServeHTTP(c.Res, c.Req)
+			return nil
 		}
 	}
 }

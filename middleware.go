@@ -45,51 +45,51 @@ func newSessionAuthWithRedirection(sessionManager *session.Manager, redirectURL 
 
 func (authMiddle sessionAuth) authorize() Middleware {
 	return func(next Handler) Handler {
-		return func(ctx *Context) {
+		return func(ctx *Context) error {
 			user, err := authMiddle.sessionManager.ReadSessionCookie(ctx.Req)
 			if err != nil {
 				authMiddle.handleError(ctx)
-				return
+				return nil
 			}
 			ctx.Req = makeRequestWithUser(ctx.Req, user)
-			next(ctx)
+			return next(ctx)
 		}
 	}
 }
 
 func (authMiddle sessionAuth) admin() Middleware {
 	return func(next Handler) Handler {
-		return func(ctx *Context) {
+		return func(ctx *Context) error {
 			user, err := authMiddle.sessionManager.ReadSessionCookie(ctx.Req)
 			if err != nil {
 				authMiddle.handleError(ctx)
-				return
+				return nil
 			}
 			if user.Role != core.RoleAdmin {
 				authMiddle.handleError(ctx)
-				return
+				return nil
 			}
 			ctx.Req = makeRequestWithUser(ctx.Req, user)
-			next(ctx)
+			return next(ctx)
 		}
 	}
 }
 
 func (authMiddle sessionAuth) authorizeRoles(roles []core.Role) Middleware {
 	return func(next Handler) Handler {
-		return func(ctx *Context) {
+		return func(ctx *Context) error {
 			user, err := authMiddle.sessionManager.ReadSessionCookie(ctx.Req)
 			if err != nil {
 				authMiddle.handleError(ctx)
-				return
+				return nil
 			}
 			for _, authorizedRol := range roles {
 				if user.Role == authorizedRol {
-					next(ctx)
-					return
+					return next(ctx)
 				}
 			}
 			authMiddle.handleError(ctx)
+			return nil
 		}
 	}
 }
@@ -115,41 +115,41 @@ func (authMiddle sessionAuth) handleError(ctx *Context) {
 
 func csrfMiddleware(csrf *csrf.Csrf) Middleware {
 	return func(next Handler) Handler {
-		return func(ctx *Context) {
+		return func(ctx *Context) error {
 			if ctx.Req.Method == http.MethodGet || ctx.Req.Method == http.MethodOptions {
-				next(ctx)
-				return
+				return next(ctx)
 			}
 			if csrf.CheckRequest(ctx.Req) {
-				next(ctx)
-				return
+				return next(ctx)
 			}
 			ctx.Res.WriteHeader(http.StatusForbidden)
-			fmt.Fprintf(ctx.Res, "Expired csrf token")
-			log.Println("Expired token")
+			return fmt.Errorf("Expired csrf token")
 		}
 	}
 }
 
 func corsMiddleware(methods, origin string) Middleware {
 	return func(next Handler) Handler {
-		return func(ctx *Context) {
-			next(ctx)
+		return func(ctx *Context) error {
+			if err := next(ctx); err != nil {
+				return err
+			}
 			header := ctx.Res.Header()
 			header.Set("Access-Control-Allow-Methods", methods)
 			header.Set("Access-Control-Allow-Origin", origin)
+			return nil
 		}
 	}
 }
 
 func HttpLogMiddleware(next Handler) Handler {
-	return func(ctx *Context) {
+	return func(ctx *Context) error {
 		log.Printf(
 			"[PHX] request from %s (%s) to (%s) %s",
 			ctx.Req.RemoteAddr,
 			ctx.Req.UserAgent(),
 			ctx.Req.Method,
 			ctx.Req.RequestURI)
-		next(ctx)
+		return next(ctx)
 	}
 }
