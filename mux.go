@@ -383,12 +383,14 @@ func Redirect(to string) func() Handler {
 	}
 }
 
-func (ctx *Context) Redirect(to string) {
+func (ctx *Context) Redirect(to string) error {
 	http.Redirect(ctx.Res, ctx.Req, to, http.StatusTemporaryRedirect)
+	return nil
 }
 
-func (ctx *Context) RedirectCode(to string, code int) {
+func (ctx *Context) RedirectCode(to string, code int) error {
 	http.Redirect(ctx.Res, ctx.Req, to, code)
+	return nil
 }
 
 func (ctx *Context) GetUrlParam(name string) string {
