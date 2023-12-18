@@ -29,10 +29,11 @@ type Middleware func(Handler) Handler
 type Handler func(c *Context)
 
 type Context struct {
-	Req      *http.Request
-	Res      http.ResponseWriter
+	Req    *http.Request
+	Res    http.ResponseWriter
+	params httprouter.Params
+
 	tmpl     map[string]*template.Template
-	params   httprouter.Params
 	locstore *localizer.LocalizerStore
 	csrf     *csrf.Csrf
 	validate core.Validator
@@ -40,17 +41,21 @@ type Context struct {
 }
 
 type Router struct {
+	// core router
 	injector    *Injector
 	router      *httprouter.Router
 	middlewares []Middleware
-	tmpl        map[string]*template.Template
-	tmplFuncs   template.FuncMap
-	tmplFS      embed.FS
-	csrf        *csrf.Csrf
-	locstore    *localizer.LocalizerStore
-	validate    core.Validator
-	sessions    *session.Manager
-	auth        auth
+
+	// template variables
+	tmpl      map[string]*template.Template
+	tmplFuncs template.FuncMap
+	tmplFS    embed.FS
+
+	csrf     *csrf.Csrf
+	locstore *localizer.LocalizerStore
+	validate core.Validator
+	sessions *session.Manager
+	auth     auth
 }
 
 type CorsConfig struct {
@@ -76,8 +81,8 @@ func (r *Router) UseCsrf(expires time.Duration) {
 	r.middlewares = append(r.middlewares, csrfMiddleware(r.csrf))
 }
 
-func (r *Router) UseCors(methods, origin string) {
-	r.router.GlobalOPTIONS = preflightCorsHanlder(methods, origin)
+func (r *Router) UseCors(methods, origin, headers string) {
+	r.router.GlobalOPTIONS = preflightCorsHanlder(methods, origin, headers)
 	r.middlewares = append(r.middlewares, corsMiddleware(methods, origin))
 }
 
@@ -107,12 +112,13 @@ func NewRouter() *Router {
 	}
 }
 
-func preflightCorsHanlder(methods, origin string) http.Handler {
+func preflightCorsHanlder(methods, origin, headers string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Header.Get("Access-Control-Request-Method") != "" {
-			header := w.Header()
-			header.Set("Access-Control-Allow-Methods", methods)
-			header.Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Allow-Methods", methods)
+			w.Header().Set("Access-Control-Allow-Headers", headers)
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
