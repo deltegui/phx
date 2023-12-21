@@ -3,9 +3,7 @@ package phx
 import (
 	"context"
 	"embed"
-	"encoding/json"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -15,11 +13,8 @@ import (
 	"time"
 
 	"github.com/deltegui/phx/core"
-	"github.com/deltegui/phx/csrf"
 	"github.com/deltegui/phx/hash"
 	"github.com/deltegui/phx/localizer"
-	"github.com/deltegui/phx/pagination"
-	"github.com/deltegui/phx/session"
 	"github.com/deltegui/phx/validator"
 	"github.com/julienschmidt/httprouter"
 )
@@ -28,78 +23,48 @@ type Middleware func(Handler) Handler
 
 type Handler func(c *Context) error
 
-type Context struct {
-	Req    *http.Request
-	Res    http.ResponseWriter
-	params httprouter.Params
-
-	tmpl     map[string]*template.Template
-	locstore *localizer.LocalizerStore
-	csrf     *csrf.Csrf
-	validate core.Validator
-	sessions *session.Manager
+type Renderer interface {
+	Render(ctx *Context, status int, parsed string, vm interface{}) error
+	RenderWithErrors(ctx *Context, status int, parsed string, vm interface{}, formErrors map[string]string) error
 }
 
 type Router struct {
-	// core router
 	injector     *Injector
 	router       *httprouter.Router
 	middlewares  []Middleware
 	ErrorHandler func(*Context, error)
 
-	// template variables
-	tmpl      map[string]*template.Template
-	tmplFuncs template.FuncMap
-	tmplFS    embed.FS
-
-	csrf     *csrf.Csrf
 	locstore *localizer.LocalizerStore
 	validate core.Validator
-	sessions *session.Manager
-	auth     auth
-}
-
-type CorsConfig struct {
-	AllowMethods string
-	AllowOrigin  string
-}
-
-func (r *Router) UseTemplate(fs embed.FS) {
-	r.tmplFS = fs
 }
 
 func (r *Router) UseLocalization(files embed.FS, sharedKey, errorsKey string) {
 	var cypher core.Cypher
-	cypher = r.injector.GetByType(reflect.TypeOf(&cypher).Elem()).(core.Cypher)
+	instance, err := r.injector.GetByType(reflect.TypeOf(&cypher).Elem())
+	if err != nil {
+		panic("A type of core.Cypher is needed to use localization. Register it in the injector.")
+	}
+	cypher, ok := instance.(core.Cypher)
+	if !ok {
+		panic("Expected that the registered dependency for type core.Cypher would be compatible with interface core.Cypher")
+	}
 	loc := localizer.NewLocalizerStore(files, sharedKey, errorsKey, cypher)
 	r.locstore = &loc
 }
 
-func (r *Router) UseCsrf(expires time.Duration) {
-	var cypher core.Cypher
-	cypher = r.injector.GetByType(reflect.TypeOf(&cypher).Elem()).(core.Cypher)
-	r.csrf = csrf.New(expires, cypher)
-	r.middlewares = append(r.middlewares, csrfMiddleware(r.csrf))
-}
-
-func (r *Router) UseCors(methods, origin, headers string) {
-	r.router.GlobalOPTIONS = preflightCorsHanlder(methods, origin, headers)
-	r.middlewares = append(r.middlewares, corsMiddleware(methods, origin))
-}
-
-func (r *Router) UseStatic(path string) {
+func (r *Router) Static(path string) {
 	r.router.NotFound = http.FileServer(http.Dir(path))
 }
 
-func (r *Router) UseStaticEmbedded(fs embed.FS) {
+func (r *Router) StaticEmbedded(fs embed.FS) {
 	r.router.NotFound = http.FileServer(http.FS(fs))
 }
 
-func (r *Router) UseStaticMount(url, path string) {
+func (r *Router) StaticMount(url, path string) {
 	r.router.ServeFiles(fmt.Sprintf("%s/*filepath", url), http.Dir(path))
 }
 
-func (r *Router) UseStaticMountEmbedded(url string, fs embed.FS) {
+func (r *Router) StaticMountEmbedded(url string, fs embed.FS) {
 	r.router.ServeFiles(fmt.Sprintf("%s/*filepath", url), http.FS(fs))
 }
 
@@ -114,21 +79,8 @@ func NewRouter() *Router {
 		router:       httprouter.New(),
 		middlewares:  []Middleware{},
 		ErrorHandler: defaultErrorHandler,
-		tmpl:         make(map[string]*template.Template),
 		validate:     validator.New(),
 	}
-}
-
-func preflightCorsHanlder(methods, origin, headers string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.Header.Get("Access-Control-Request-Method") != "" {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			w.Header().Set("Access-Control-Allow-Methods", methods)
-			w.Header().Set("Access-Control-Allow-Headers", headers)
-		}
-		w.WriteHeader(http.StatusNoContent)
-	})
 }
 
 func NewRouterFromOther(r *Router) *Router {
@@ -137,23 +89,30 @@ func NewRouterFromOther(r *Router) *Router {
 		router:       httprouter.New(),
 		ErrorHandler: r.ErrorHandler,
 		middlewares:  r.middlewares,
-		tmpl:         make(map[string]*template.Template),
-		csrf:         r.csrf,
 		locstore:     r.locstore,
 	}
 }
 
 func (r *Router) createContext(w http.ResponseWriter, req *http.Request, params httprouter.Params) *Context {
-	return &Context{
+	ctx := &Context{
 		Req:      req,
 		Res:      w,
-		tmpl:     r.tmpl,
 		params:   params,
 		locstore: r.locstore,
-		csrf:     r.csrf,
 		validate: r.validate,
-		sessions: r.sessions,
+		ctx:      context.Background(),
 	}
+	instance, err := r.injector.Get(&ctx.renderer)
+	if err != nil {
+		return ctx
+	}
+	rend, ok := instance.(Renderer)
+	if !ok {
+		log.Println("Expected injetro's registered renderer to be of type 'Renderer', but it is other type")
+		return ctx
+	}
+	ctx.renderer = rend
+	return ctx
 }
 
 func (r *Router) Bootstrap() {
@@ -164,107 +123,16 @@ func (r *Router) Add(builder Builder) {
 	r.injector.Add(builder)
 }
 
+func (r *Router) Run(runner Runner) {
+	r.injector.Run(runner)
+}
+
 func (r *Router) ShowAvailableBuilders() {
 	r.injector.ShowAvailableBuilders()
 }
 
-func (r *Router) ShowAvailableTemplates() {
-	log.Println("Templates:")
-	for key, value := range r.tmpl {
-		log.Println(key, "->", value.Tree.Name)
-	}
-}
-
 func (r *Router) PopulateStruct(s interface{}) {
 	r.injector.PopulateStruct(s)
-}
-
-func (r *Router) UseSessionInMemory(duration time.Duration) {
-	r.UseSession(session.NewMemoryStore(), duration)
-}
-
-func (r *Router) UseSession(provider session.SessionStore, duration time.Duration) {
-	var hasher core.Hasher
-	hasher = r.injector.GetByType(reflect.TypeOf(&hasher).Elem()).(core.Hasher)
-	var cypher core.Cypher
-	cypher = r.injector.GetByType(reflect.TypeOf(&cypher).Elem()).(core.Cypher)
-	r.sessions = session.NewManager(provider, hasher, duration, cypher)
-}
-
-func (r *Router) UseSessionAuth() {
-	if r.sessions == nil {
-		log.Panicln("[PHX] Cannot use session authorization if you dont enable sessions. Please call to router's method 'UseSession' or any variant beofre calling 'UseSessisonAuth'")
-	}
-	r.auth = newSessionAuth(r.sessions)
-}
-
-func (r *Router) UseSessionAuthWithRedirection(redirectUrl string) {
-	if r.sessions == nil {
-		log.Panicln("[PHX] Cannot use session authorization if you dont enable sessions. Please call to router's method 'UseSession' or any variant beofre calling 'UseSessisonAuth'")
-	}
-	r.auth = newSessionAuthWithRedirection(r.sessions, redirectUrl)
-}
-
-func (r *Router) ensureHaveAuth() {
-	if r.auth == nil {
-		log.Panicln("[PHX] Cannot use Authorize middleware if you dont provide an authorization implementation. Use 'UseSesssionAuth' to enable authorization")
-	}
-}
-
-func (r *Router) Authorize() Middleware {
-	r.ensureHaveAuth()
-	return r.auth.authorize()
-}
-
-func (r *Router) Admin() Middleware {
-	r.ensureHaveAuth()
-	return r.auth.admin()
-}
-
-func (r *Router) AuthorizeRoles(roles []core.Role) Middleware {
-	r.ensureHaveAuth()
-	return r.auth.authorizeRoles(roles)
-}
-
-func (r *Context) CreateSessionCookie(user session.User) {
-	r.sessions.CreateSessionCookie(r.Res, user)
-}
-
-func (r *Context) ReadSessionCookie() (session.User, error) {
-	return r.sessions.ReadSessionCookie(r.Req)
-}
-
-func (r *Context) DestroySession() error {
-	return r.sessions.DestroySession(r.Res, r.Req)
-}
-
-func (ctx *Context) GetUser() session.User {
-	return getUser(ctx.Req)
-}
-
-func (ctx *Context) HaveSession() bool {
-	_, err := ctx.ReadSessionCookie()
-	return err == nil
-}
-
-func (ctx *Context) PaginationToVM(pag pagination.Pagination) pagination.ViewModel {
-	return pagination.PaginationToVM(pag, ctx.GetLocalizer("common/pagination"))
-}
-
-func (ctx *Context) GetLocalizer(file string) localizer.Localizer {
-	return ctx.locstore.GetUsingRequest(file, ctx.Req)
-}
-
-func (ctx *Context) Localize(file, key string) string {
-	return ctx.locstore.GetUsingRequest(file, ctx.Req).Get(key)
-}
-
-func (ctx *Context) LocalizeError(err core.UseCaseError) string {
-	return ctx.locstore.GetLocalizedError(err, ctx.Req)
-}
-
-func (ctx *Context) LocalizeWithoutShared(file, key string) string {
-	return ctx.locstore.GetUsingRequestWithoutShared(file, ctx.Req).Get(key)
 }
 
 func (r *Router) Use(middleware Middleware) {
@@ -365,7 +233,7 @@ func waitAndStopServer(server *http.Server) {
 	log.Print("Server exited properly")
 }
 
-func (r Router) Run(address string) {
+func (r Router) Listen(address string) {
 	server := http.Server{
 		Addr:    address,
 		Handler: r.router,
@@ -381,38 +249,4 @@ func Redirect(to string) func() Handler {
 			return nil
 		}
 	}
-}
-
-func (ctx *Context) Redirect(to string) error {
-	http.Redirect(ctx.Res, ctx.Req, to, http.StatusTemporaryRedirect)
-	return nil
-}
-
-func (ctx *Context) RedirectCode(to string, code int) error {
-	http.Redirect(ctx.Res, ctx.Req, to, code)
-	return nil
-}
-
-func (ctx *Context) GetUrlParam(name string) string {
-	return ctx.params.ByName(name)
-}
-
-func (ctx *Context) GetQueryParam(name string) string {
-	return ctx.Req.URL.Query().Get(name)
-}
-
-func (ctx *Context) GetCurrentLanguage() string {
-	return ctx.locstore.ReadCookie(ctx.Req)
-}
-
-func (ctx *Context) ChangeLanguage(to string) {
-	ctx.locstore.CreateCookie(ctx.Res, to)
-}
-
-func (ctx *Context) Validate(s any) map[string]string {
-	return ctx.validate(s)
-}
-
-func (ctx *Context) ParseJson(dst any) error {
-	return json.NewDecoder(ctx.Req.Body).Decode(dst)
 }

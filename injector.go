@@ -1,6 +1,7 @@
 package phx
 
 import (
+	"fmt"
 	"log"
 	"reflect"
 )
@@ -10,6 +11,30 @@ import (
 // cause some errors appears in runtime. So it's represented
 // as an interface.
 type Builder interface{}
+
+// Runner is any funtion that returns void. It is use
+// as an easy way to ask to the injetor to provide dependencies
+// to do something. For example, imagine that we have an interface called
+// UserDao and we just want do something with it outside any builder or
+// dependecy created using this injector. The UserDao is registered
+// this way:
+//
+//	injector.Add(db.NewUserDao)
+//
+// Then, you can ask for the dependency to the injector this way:
+//
+//	var userDao db.UserDao
+//	userDao = injector.GetByType(reflect.TypeOf(&userDao).Elem()).(db.UserDao)
+//
+// Its pretty cumbersome huh? You have to do that because you know it is an interface.
+// Using Runner you can just do this:
+//
+//	injector.Run(func(userDao db.UserDao) {
+//		[... do whatever you want with userdDao ...]
+//	})
+//
+// The callback function will be exectued inmediatly.
+type Runner interface{}
 
 // Injector is an automated dependency injector inspired in Sping's
 // DI. It will detect which builder to call using its return type.
@@ -40,17 +65,17 @@ func (injector Injector) ShowAvailableBuilders() {
 }
 
 // Get returns a builded dependency
-func (injector Injector) Get(name interface{}) interface{} {
+func (injector Injector) Get(name interface{}) (interface{}, error) {
 	return injector.GetByType(reflect.TypeOf(name))
 }
 
 // GetByType returns a builded dependency identified by type
-func (injector Injector) GetByType(name reflect.Type) interface{} {
+func (injector Injector) GetByType(name reflect.Type) (interface{}, error) {
 	dependencyBuilder := injector.builders[name]
 	if dependencyBuilder == nil {
-		log.Panicf("Builder not found for type %s\n", name)
+		return nil, fmt.Errorf("builder not found for type %s\n", name)
 	}
-	return injector.CallBuilder(dependencyBuilder)
+	return injector.CallBuilder(dependencyBuilder), nil
 }
 
 // ResolveHandler created by a builder
@@ -64,7 +89,10 @@ func (injector Injector) CallBuilder(builder Builder) interface{} {
 	var inputs []reflect.Value
 	builderType := reflect.TypeOf(builder)
 	for i := 0; i < builderType.NumIn(); i++ {
-		impl := injector.GetByType(builderType.In(i))
+		impl, err := injector.GetByType(builderType.In(i))
+		if err != nil {
+			panic(err)
+		}
 		inputs = append(inputs, reflect.ValueOf(impl))
 	}
 	builderVal := reflect.ValueOf(builder)
@@ -84,8 +112,26 @@ func (injector Injector) PopulateStruct(userStruct interface{}) {
 	for i := 0; i < structValue.NumField(); i++ {
 		field := structValue.Field(i)
 		if field.IsValid() && field.CanSet() {
-			impl := injector.GetByType(field.Type())
+			impl, err := injector.GetByType(field.Type())
+			if err != nil {
+				panic(err)
+			}
 			field.Set(reflect.ValueOf(impl))
 		}
 	}
+}
+
+// Run is a function that runs a Runner. Show Runner type for more information
+func (injector Injector) Run(runner Runner) {
+	var inputs []reflect.Value
+	runnerType := reflect.TypeOf(runner)
+	for i := 0; i < runnerType.NumIn(); i++ {
+		impl, err := injector.GetByType(runnerType.In(i))
+		if err != nil {
+			panic(err)
+		}
+		inputs = append(inputs, reflect.ValueOf(impl))
+	}
+	runnerVal := reflect.ValueOf(runner)
+	runnerVal.Call(inputs)
 }
