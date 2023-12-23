@@ -10,16 +10,12 @@ import (
 
 const ContextKey string = "phx_session_auth"
 
-func Authorize(manager Manager) func() phx.Middleware {
-	return func() phx.Middleware {
-		return authorize(manager, "")
-	}
+func Authorize(manager Manager) phx.Middleware {
+	return authorize(manager, "")
 }
 
-func AuthorizeRedirect(manager Manager, url string) func() phx.Middleware {
-	return func() phx.Middleware {
-		return authorize(manager, url)
-	}
+func AuthorizeRedirect(manager Manager, url string) phx.Middleware {
+	return authorize(manager, url)
 }
 
 func authorize(manager Manager, url string) phx.Middleware {

@@ -102,7 +102,8 @@ func (r *Router) createContext(w http.ResponseWriter, req *http.Request, params 
 		validate: r.validate,
 		ctx:      context.Background(),
 	}
-	instance, err := r.injector.Get(&ctx.renderer)
+	var rend Renderer
+	instance, err := r.injector.GetByType(reflect.TypeOf(&rend).Elem())
 	if err != nil {
 		return ctx
 	}

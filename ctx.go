@@ -125,6 +125,9 @@ func (ctx *Context) JsonOK(data interface{}) error {
 }
 
 func (ctx *Context) Render(status int, parsed string, vm interface{}) error {
+	if ctx.renderer == nil {
+		panic("Cannot call render. Missing dependency: phx.Renderer")
+	}
 	return ctx.renderer.Render(ctx, status, parsed, vm)
 }
 
@@ -133,5 +136,8 @@ func (ctx *Context) RenderOK(parsed string, vm interface{}) error {
 }
 
 func (ctx *Context) RenderWithErrors(status int, parsed string, vm interface{}, formErrors map[string]string) error {
+	if ctx.renderer == nil {
+		panic("Cannot call render. Missing dependency: phx.Renderer")
+	}
 	return ctx.renderer.RenderWithErrors(ctx, status, parsed, vm, formErrors)
 }

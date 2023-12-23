@@ -73,7 +73,7 @@ func (injector Injector) Get(name interface{}) (interface{}, error) {
 func (injector Injector) GetByType(name reflect.Type) (interface{}, error) {
 	dependencyBuilder := injector.builders[name]
 	if dependencyBuilder == nil {
-		return nil, fmt.Errorf("builder not found for type %s\n", name)
+		return nil, fmt.Errorf("builder not found for type %s", name)
 	}
 	return injector.CallBuilder(dependencyBuilder), nil
 }
