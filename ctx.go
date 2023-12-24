@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/deltegui/phx/core"
 	"github.com/deltegui/phx/localizer"
 	"github.com/deltegui/phx/pagination"
+	"github.com/deltegui/phx/session"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -37,6 +39,10 @@ func (ctx *Context) PaginationToVM(pag pagination.Pagination) pagination.ViewMod
 	return pagination.PaginationToVM(pag, ctx.GetLocalizer("common/pagination"))
 }
 
+func (ctx *Context) HaveLocalizer() bool {
+	return ctx.locstore != nil
+}
+
 func (ctx *Context) GetLocalizer(file string) localizer.Localizer {
 	return ctx.locstore.GetUsingRequest(file, ctx.Req)
 }
@@ -51,6 +57,22 @@ func (ctx *Context) LocalizeError(err core.UseCaseError) string {
 
 func (ctx *Context) LocalizeWithoutShared(file, key string) string {
 	return ctx.locstore.GetUsingRequestWithoutShared(file, ctx.Req).Get(key)
+}
+
+func (ctx *Context) GetUser() session.User {
+	return ctx.Get(session.ContextKey).(session.User)
+}
+
+func (ctx *Context) HaveSession() bool {
+	instance := ctx.Get(session.ContextKey)
+	if instance == nil {
+		log.Println("Call to HaveSession. You dont have sessions enabled. To do so, you have to add a middleware.")
+		return false
+	}
+	if _, ok := instance.(session.User); !ok {
+		return false
+	}
+	return true
 }
 
 func (ctx *Context) Redirect(to string) error {

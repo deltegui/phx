@@ -17,9 +17,9 @@ type ViewModel struct {
 
 func CreateViewModel(ctx *phx.Context, name string, model interface{}) ViewModel {
 	var loc localizer.Localizer = nil
-	/*if ctx.locstore != nil {
-		loc = ctx.locstore.GetUsingRequest(name, ctx.Req)
-	}*/
+	if ctx.HaveLocalizer() {
+		loc = ctx.GetLocalizer(name)
+	}
 	csrfToken, ok := ctx.Get("phx-csrf").(string)
 	if !ok {
 		csrfToken = ""
