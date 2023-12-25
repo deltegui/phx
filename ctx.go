@@ -131,6 +131,15 @@ func (ctx *Context) InternalServerError(data string, a ...any) error {
 	return ctx.String(http.StatusInternalServerError, data, a...)
 }
 
+func (ctx *Context) NotContent() error {
+	ctx.Res.WriteHeader(204)
+	return nil
+}
+
+func (ctx *Context) Forbidden(data string, a ...any) error {
+	return ctx.String(http.StatusForbidden, data, a...)
+}
+
 func (ctx *Context) Json(status int, data any) error {
 	response, err := json.Marshal(data)
 	if err != nil {

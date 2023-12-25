@@ -23,9 +23,12 @@ func AddCypher(r *phx.Router) {
 	r.Add(func() core.Cypher { return cypher.New() })
 }
 
-func AddCsrf(r *phx.Router, duration time.Duration) {
+func UseCsrf(r *phx.Router, duration time.Duration) {
 	r.Add(func(cy core.Cypher) *csrf.Csrf {
 		return csrf.New(duration, cy)
+	})
+	r.Run(func(c *csrf.Csrf) {
+		r.Use(middleware.Csrf(c))
 	})
 }
 
@@ -56,10 +59,9 @@ type Authorization struct {
 
 func AddAuthorizationWithRedirect(r *phx.Router, redirect string) Authorization {
 	auth := Authorization{}
-	r.PopulateStruct(&auth)
-	if auth.manager == nil {
-		panic("You need to register a session manager to use authorization")
-	}
+	r.Run(func(manager *session.Manager) {
+		auth.manager = manager
+	})
 	auth.redirect = redirect
 	return auth
 }
@@ -86,4 +88,12 @@ func AddRendering(r *phx.Router, fs embed.FS) *renderer.TemplateRenderer {
 	r.Add(func() phx.Renderer { return rend })
 	r.Add(func() *renderer.TemplateRenderer { return rend })
 	return rend
+}
+
+func UseCors(r *phx.Router, opt middleware.CorsOptions) {
+	r.Use(middleware.Cors(opt))
+}
+
+func UseCorsDefault(r *phx.Router) {
+	r.Use(middleware.CorsDefault())
 }
