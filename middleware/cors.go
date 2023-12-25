@@ -43,6 +43,9 @@ func Cors(opt CorsOptions) phx.Middleware {
 	}
 
 	isAllHeadersAllowed := func(headers []string) bool {
+		if len(opt.AllowHeaders) == 0 || len(opt.AllowHeaders) == 1 && opt.AllowHeaders[0] == CorsAny {
+			return true
+		}
 	next:
 		for _, rh := range headers {
 			for _, ah := range opt.AllowHeaders {
@@ -100,7 +103,8 @@ func Cors(opt CorsOptions) phx.Middleware {
 			if !isMethodAllowed(ctx.Req.Method) {
 				return ctx.Forbidden("Method not allowed by CORS: %s", ctx.Req.Method)
 			}
-			if !isOriginAllowed(ctx.Req.Header.Get("Origin")) {
+			origin := ctx.Req.Header.Get("Origin")
+			if len(origin) != 0 && !isOriginAllowed(origin) {
 				return ctx.Forbidden("Origin not allowed by CORS")
 			}
 			if !isAllHeadersAllowed(getHeadersNames(ctx)) {

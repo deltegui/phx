@@ -8,6 +8,7 @@ import (
 	"github.com/deltegui/phx/core"
 	"github.com/deltegui/phx/csrf"
 	"github.com/deltegui/phx/cypher"
+	"github.com/deltegui/phx/hash"
 	"github.com/deltegui/phx/middleware"
 	"github.com/deltegui/phx/renderer"
 	"github.com/deltegui/phx/session"
@@ -17,6 +18,10 @@ func AddCypherWithPassword(r *phx.Router, password string) {
 	r.Add(func() core.Cypher {
 		return cypher.NewWithPasswordAsString(password)
 	})
+}
+
+func AddHasher(r *phx.Router) {
+	r.Add(func() core.Hasher { return hash.BcryptHasher{} })
 }
 
 func AddCypher(r *phx.Router) {

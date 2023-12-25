@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/deltegui/phx/core"
-	"github.com/deltegui/phx/hash"
 	"github.com/deltegui/phx/localizer"
 	"github.com/deltegui/phx/validator"
 	"github.com/julienschmidt/httprouter"
@@ -114,10 +113,6 @@ func (r *Router) createContext(w http.ResponseWriter, req *http.Request, params 
 	}
 	ctx.renderer = rend
 	return ctx
-}
-
-func (r *Router) Bootstrap() {
-	r.injector.Add(func() core.Hasher { return hash.BcryptHasher{} })
 }
 
 func (r *Router) Add(builder Builder) {
