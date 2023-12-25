@@ -18,8 +18,8 @@ type TemplateRenderer struct {
 	tmplFS    embed.FS
 }
 
-func NewTemplateRenderer(fs embed.FS) TemplateRenderer {
-	return TemplateRenderer{
+func NewTemplateRenderer(fs embed.FS) *TemplateRenderer {
+	return &TemplateRenderer{
 		tmpl:      make(map[string]*template.Template),
 		tmplFS:    fs,
 		tmplFuncs: map[string]any{},

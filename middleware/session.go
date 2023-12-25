@@ -9,15 +9,7 @@ import (
 	"github.com/deltegui/phx/session"
 )
 
-func Authorize(manager session.Manager) phx.Middleware {
-	return authorize(manager, "")
-}
-
-func AuthorizeRedirect(manager session.Manager, url string) phx.Middleware {
-	return authorize(manager, url)
-}
-
-func authorize(manager session.Manager, url string) phx.Middleware {
+func Authorize(manager *session.Manager, url string) phx.Middleware {
 	return func(next phx.Handler) phx.Handler {
 		return func(ctx *phx.Context) error {
 			user, err := manager.ReadSessionCookie(ctx.Req)
@@ -31,44 +23,26 @@ func authorize(manager session.Manager, url string) phx.Middleware {
 	}
 }
 
-func AuthorizeRoles(manager session.Manager) func([]core.Role) phx.Middleware {
-	return authorizeRoles(manager, "")
-}
-
-func AuthorizeRolesRedirect(manager session.Manager, url string) func([]core.Role) phx.Middleware {
-	return authorizeRoles(manager, url)
-}
-
-func authorizeRoles(manager session.Manager, url string) func([]core.Role) phx.Middleware {
-	return func(roles []core.Role) phx.Middleware {
-		return func(next phx.Handler) phx.Handler {
-			return func(ctx *phx.Context) error {
-				user, err := manager.ReadSessionCookie(ctx.Req)
-				if err != nil {
-					handleError(ctx, url)
-					return nil
-				}
-				for _, authorizedRol := range roles {
-					if user.Role == authorizedRol {
-						return next(ctx)
-					}
-				}
+func AuthorizeRoles(manager *session.Manager, url string, roles []core.Role) phx.Middleware {
+	return func(next phx.Handler) phx.Handler {
+		return func(ctx *phx.Context) error {
+			user, err := manager.ReadSessionCookie(ctx.Req)
+			if err != nil {
 				handleError(ctx, url)
 				return nil
 			}
+			for _, authorizedRol := range roles {
+				if user.Role == authorizedRol {
+					return next(ctx)
+				}
+			}
+			handleError(ctx, url)
+			return nil
 		}
 	}
 }
 
-func Admin(manager session.Manager) phx.Middleware {
-	return admin(manager, "")
-}
-
-func AdminRedirect(manager session.Manager, url string) phx.Middleware {
-	return admin(manager, url)
-}
-
-func admin(manager session.Manager, url string) phx.Middleware {
+func Admin(manager *session.Manager, url string) phx.Middleware {
 	return func(next phx.Handler) phx.Handler {
 		return func(ctx *phx.Context) error {
 			user, err := manager.ReadSessionCookie(ctx.Req)
