@@ -83,6 +83,16 @@ func setValue(field reflect.Value, value string) bool {
 		return setInt[int16](field, value, isPointer, 16)
 	case reflect.Int8:
 		return setInt[int8](field, value, isPointer, 8)
+	case reflect.Uint:
+		return setUint[uint](field, value, isPointer, 64)
+	case reflect.Uint64:
+		return setUint[uint64](field, value, isPointer, 64)
+	case reflect.Uint32:
+		return setUint[uint32](field, value, isPointer, 32)
+	case reflect.Uint16:
+		return setUint[uint16](field, value, isPointer, 16)
+	case reflect.Uint8:
+		return setUint[uint8](field, value, isPointer, 8)
 	case reflect.Float64:
 		return setFloat[float64](field, value, isPointer, 64)
 	case reflect.Float32:
@@ -96,6 +106,23 @@ func setValue(field reflect.Value, value string) bool {
 
 func setInt[T int | int8 | int16 | int32 | int64](field reflect.Value, value string, isPointer bool, bits int) bool {
 	i, err := strconv.ParseInt(value, 0, bits)
+	if err != nil {
+		return false
+	}
+	p := T(i)
+	if isPointer {
+		if value == "" {
+			return true
+		}
+		field.Set(reflect.ValueOf(&p))
+	} else {
+		field.Set(reflect.ValueOf(p))
+	}
+	return true
+}
+
+func setUint[T uint | uint8 | uint16 | uint32 | uint64](field reflect.Value, value string, isPointer bool, bits int) bool {
+	i, err := strconv.ParseUint(value, 0, bits)
 	if err != nil {
 		return false
 	}
