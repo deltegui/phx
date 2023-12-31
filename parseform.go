@@ -3,6 +3,7 @@ package phx
 import (
 	"reflect"
 	"strconv"
+	"time"
 )
 
 // ParseForm parses req.Form and then serializes the form data to
@@ -30,7 +31,19 @@ import (
 //
 // { A = false, B: 2 }
 //
-// The supported field types are: int, int8, int16, int32, int64, float32, float64, bool and string
+// The supported field types are:
+//
+//   - int, int8, int16, int32, int64
+//
+//   - uint, uint8, uint16, uint32, uint64
+//
+//   - float32, float64
+//
+//   - bool
+//
+//   - string
+//
+//   - time.Time
 func (ctx *Context) ParseForm(dst interface{}) {
 	ctx.Req.ParseForm()
 	v := reflect.ValueOf(dst)
@@ -73,6 +86,15 @@ func setValue(field reflect.Value, value string) bool {
 	switch t.Kind() {
 	case reflect.String:
 		return setString(field, value, isPointer)
+	case reflect.Bool:
+		return setBool(field, value, isPointer)
+	case reflect.Struct:
+		if t.String() == "time.Time" {
+			return setDateTime(field, value, isPointer)
+		}
+		return false
+
+	// Int values
 	case reflect.Int:
 		return setInt[int](field, value, isPointer, 64)
 	case reflect.Int64:
@@ -83,6 +105,8 @@ func setValue(field reflect.Value, value string) bool {
 		return setInt[int16](field, value, isPointer, 16)
 	case reflect.Int8:
 		return setInt[int8](field, value, isPointer, 8)
+
+	// UInt values
 	case reflect.Uint:
 		return setUint[uint](field, value, isPointer, 64)
 	case reflect.Uint64:
@@ -93,15 +117,32 @@ func setValue(field reflect.Value, value string) bool {
 		return setUint[uint16](field, value, isPointer, 16)
 	case reflect.Uint8:
 		return setUint[uint8](field, value, isPointer, 8)
+
+	// Floating numbers
 	case reflect.Float64:
 		return setFloat[float64](field, value, isPointer, 64)
 	case reflect.Float32:
 		return setFloat[float32](field, value, isPointer, 32)
-	case reflect.Bool:
-		return setBool(field, value, isPointer)
+
 	default:
 		return false
 	}
+}
+
+func setDateTime(field reflect.Value, value string, isPointer bool) bool {
+	if len(value) == 0 {
+		return false
+	}
+	time, err := time.Parse("2006-01-02T15:04", value)
+	if err != nil {
+		return false
+	}
+	if isPointer {
+		field.Set(reflect.ValueOf(&time))
+	} else {
+		field.Set(reflect.ValueOf(time))
+	}
+	return true
 }
 
 func setInt[T int | int8 | int16 | int32 | int64](field reflect.Value, value string, isPointer bool, bits int) bool {
