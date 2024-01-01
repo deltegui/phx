@@ -158,6 +158,7 @@ func (manager *Manager) CreateSessionCookie(w http.ResponseWriter, user User) {
 		MaxAge:   int(age.Seconds()),
 		Path:     "/",
 		SameSite: http.SameSiteDefaultMode,
+		HttpOnly: true,
 	})
 }
 

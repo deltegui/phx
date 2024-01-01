@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/deltegui/phx/core"
+	"github.com/deltegui/phx/cypher"
 	"github.com/deltegui/phx/localizer"
 	"github.com/deltegui/phx/pagination"
 	"github.com/deltegui/phx/session"
@@ -25,6 +27,8 @@ type Context struct {
 	renderer Renderer
 
 	validate core.Validator
+
+	cy core.Cypher
 }
 
 func (r *Context) Set(key, value any) {
@@ -171,4 +175,91 @@ func (ctx *Context) RenderWithErrors(status int, parsed string, vm interface{}, 
 		panic("Cannot call render. Missing dependency: phx.Renderer")
 	}
 	return ctx.renderer.RenderWithErrors(ctx, status, parsed, vm, formErrors)
+}
+
+type CookieOptions struct {
+	Name    string
+	Expires time.Duration
+	Value   string
+
+	// Set if front scripts can access to cookie.
+	// If its true, front script cannot access.
+	// By default true.
+	HttpOnly bool
+
+	// Sets if cookies are only send through https.
+	// If its true means https only. By default false.
+	Secure bool
+}
+
+func (ctx *Context) CreateCookieOptions(opt CookieOptions) error {
+	var data string
+	if ctx.cy != nil {
+		var err error
+		data, err = cypher.EncodeCookie(ctx.cy, opt.Value)
+		if err != nil {
+			return fmt.Errorf("error encoding cookie: %s", err)
+		}
+	} else {
+		log.Println("[PHX] WARNING!: Using plain cookies. You must provide a core.Cypher implementation to use encoded cookies")
+		data = opt.Value
+	}
+	http.SetCookie(ctx.Res, &http.Cookie{
+		Name:     opt.Name,
+		Value:    data,
+		Expires:  time.Now().Add(opt.Expires),
+		MaxAge:   int(opt.Expires.Seconds()),
+		Path:     "/",
+		SameSite: http.SameSiteDefaultMode,
+		HttpOnly: opt.HttpOnly,
+		Secure:   opt.Secure,
+	})
+	return nil
+}
+
+func (ctx *Context) CreateCookie(name, data string) error {
+	return ctx.CreateCookieOptions(CookieOptions{
+		Name:     name,
+		Expires:  24 * time.Hour,
+		Value:    data,
+		HttpOnly: true,
+		Secure:   false,
+	})
+}
+
+func (ctx *Context) ReadCookie(name string) (string, error) {
+	cookie, err := ctx.Req.Cookie(name)
+	if err != nil {
+		return "", fmt.Errorf("error while reading cookie with key: '%s': %s", name, err)
+	}
+	var data string
+	if ctx.cy != nil {
+		data, err = cypher.DecodeCookie(ctx.cy, cookie.Value)
+		if err != nil {
+			return "", fmt.Errorf("cannot decode cookie: %s", err)
+		}
+	} else {
+		log.Println("[PHX] WARNING!: Using plain cookies. You must provide a core.Cypher implementation to use encoded cookies")
+		data = cookie.Value
+	}
+	return data, nil
+}
+
+func (ctx *Context) DeleteCookie(name string) error {
+	if ctx.cy == nil {
+		log.Println("[PHX] WARNING!: Using plain cookies. You must provide a core.Cypher implementation to use encoded cookies")
+	}
+	_, err := ctx.Req.Cookie(name)
+	if err != nil {
+		return fmt.Errorf("error while reading cookie with key: '%s': %s", name, err)
+	}
+	http.SetCookie(ctx.Res, &http.Cookie{
+		Name:     name,
+		Value:    "",
+		Expires:  time.Unix(0, 0),
+		MaxAge:   0,
+		Path:     "/",
+		SameSite: http.SameSiteDefaultMode,
+	})
+	return nil
 }

@@ -101,6 +101,7 @@ func (r *Router) createContext(w http.ResponseWriter, req *http.Request, params 
 		validate: r.validate,
 		ctx:      context.Background(),
 	}
+
 	var rend Renderer
 	instance, err := r.injector.GetByType(reflect.TypeOf(&rend).Elem())
 	if err != nil {
@@ -108,10 +109,23 @@ func (r *Router) createContext(w http.ResponseWriter, req *http.Request, params 
 	}
 	rend, ok := instance.(Renderer)
 	if !ok {
-		log.Println("Expected injetro's registered renderer to be of type 'Renderer', but it is other type")
+		log.Println("Expected injetor's registered renderer to be of type 'Renderer', but it is other type")
 		return ctx
 	}
 	ctx.renderer = rend
+
+	var cy core.Cypher
+	cyInstance, err := r.injector.GetByType(reflect.TypeOf(&cy).Elem())
+	if err != nil {
+		return ctx
+	}
+	cy, ok = cyInstance.(core.Cypher)
+	if !ok {
+		log.Println("Expected injetor's registered cypher to be of type 'core.Cypher', but it is other type")
+		return ctx
+	}
+	ctx.cy = cy
+
 	return ctx
 }
 
