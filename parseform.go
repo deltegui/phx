@@ -3,6 +3,7 @@ package phx
 import (
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -45,7 +46,13 @@ import (
 //
 //   - time.Time
 func (ctx *Context) ParseForm(dst interface{}) {
-	ctx.Req.ParseForm()
+	contentType := ctx.Req.Header.Get("Content-Type")
+	if strings.HasPrefix(contentType, "multiplart/form-data") && ctx.Req.Form == nil {
+		ctx.Req.ParseMultipartForm(64 << 20) // 20mb
+	} else if ctx.Req.Form == nil {
+		ctx.Req.ParseForm()
+	}
+
 	v := reflect.ValueOf(dst)
 	// Is a pointer to an interface. An interface is a pointer to something else.
 	e := v.Elem()
@@ -71,7 +78,7 @@ func (ctx *Context) ParseForm(dst interface{}) {
 		if !fieldValue.CanSet() {
 			continue
 		}
-		value := ctx.Req.Form.Get(lookup)
+		value := ctx.Req.FormValue(lookup)
 		setValue(fieldValue, value)
 	}
 }

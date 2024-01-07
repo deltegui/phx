@@ -13,7 +13,7 @@ type ViewModel struct {
 	TotalElements      int
 	Sequence           []int
 	PreviousPage       int
-	CurrentPage        int `html:"pagination.currentPage"`
+	CurrentPage        int `html:"pagination.currentPage" json:"currentPage"`
 	NextPage           int
 	Show               bool
 	ShowPreviousButton bool

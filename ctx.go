@@ -244,7 +244,6 @@ func (ctx *Context) ReadCookie(name string) (string, error) {
 	}
 	return data, nil
 }
-
 func (ctx *Context) DeleteCookie(name string) error {
 	if ctx.cy == nil {
 		log.Println("[PHX] WARNING!: Using plain cookies. You must provide a core.Cypher implementation to use encoded cookies")

@@ -81,8 +81,7 @@ func (csrf Csrf) Check(token string) bool {
 }
 
 func (csrf Csrf) CheckRequest(req *http.Request) bool {
-	req.ParseForm()
-	token := req.Form.Get(CsrfHeaderName)
+	token := req.FormValue(CsrfHeaderName)
 	if len(token) == 0 {
 		token = req.Header.Get(CsrfHeaderName)
 		if len(token) == 0 {
