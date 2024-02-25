@@ -9,13 +9,13 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/deltegui/phx/core"
 	"github.com/deltegui/phx/localizer"
 	"github.com/deltegui/phx/validator"
-	"github.com/julienschmidt/httprouter"
 )
 
 type Middleware func(Handler) Handler
@@ -29,7 +29,7 @@ type Renderer interface {
 
 type Router struct {
 	injector     *Injector
-	router       *httprouter.Router
+	router       *http.ServeMux
 	middlewares  []Middleware
 	ErrorHandler func(*Context, error)
 
@@ -51,20 +51,41 @@ func (r *Router) UseLocalization(files embed.FS, sharedKey, errorsKey string) {
 	r.locstore = &loc
 }
 
+func exactUrl(method, path string) string {
+	var endPath string
+	if strings.HasSuffix(path, "/") {
+		endPath = "{$}"
+	} else {
+		endPath = "/{$}"
+	}
+	return fmt.Sprintf("%s %s%s", method, path, endPath)
+}
+
 func (r *Router) Static(path string) {
-	r.router.NotFound = http.FileServer(http.Dir(path))
+	r.StaticMount("GET /", path)
 }
 
 func (r *Router) StaticEmbedded(fs embed.FS) {
-	r.router.NotFound = http.FileServer(http.FS(fs))
+	r.StaticMountEmbedded("GET /", fs)
 }
 
 func (r *Router) StaticMount(url, path string) {
-	r.router.ServeFiles(fmt.Sprintf("%s/*filepath", url), http.Dir(path))
+	server := http.FileServer(http.Dir(path))
+	r.staticServer(url, server)
 }
 
 func (r *Router) StaticMountEmbedded(url string, fs embed.FS) {
-	r.router.ServeFiles(fmt.Sprintf("%s/*filepath", url), http.FS(fs))
+	server := http.FileServerFS(fs)
+	r.staticServer(url, server)
+}
+
+func (r *Router) staticServer(url string, server http.Handler) {
+	endUrl := ""
+	if !strings.HasSuffix(url, "/") {
+		endUrl = "/"
+	}
+	full := fmt.Sprintf("GET %s%s", url, endUrl)
+	r.router.Handle(full, http.StripPrefix(url, server))
 }
 
 func defaultErrorHandler(ctx *Context, err error) {
@@ -75,7 +96,7 @@ func defaultErrorHandler(ctx *Context, err error) {
 func NewRouter() *Router {
 	return &Router{
 		injector:     NewInjector(),
-		router:       httprouter.New(),
+		router:       http.NewServeMux(),
 		middlewares:  []Middleware{},
 		ErrorHandler: defaultErrorHandler,
 		validate:     validator.New(),
@@ -85,18 +106,17 @@ func NewRouter() *Router {
 func NewRouterFromOther(r *Router) *Router {
 	return &Router{
 		injector:     r.injector,
-		router:       httprouter.New(),
+		router:       http.NewServeMux(),
 		ErrorHandler: r.ErrorHandler,
 		middlewares:  r.middlewares,
 		locstore:     r.locstore,
 	}
 }
 
-func (r *Router) createContext(w http.ResponseWriter, req *http.Request, params httprouter.Params) *Context {
+func (r *Router) createContext(w http.ResponseWriter, req *http.Request) *Context {
 	ctx := &Context{
 		Req:      req,
 		Res:      w,
-		params:   params,
 		locstore: r.locstore,
 		validate: r.validate,
 		ctx:      context.Background(),
@@ -157,8 +177,9 @@ func (r *Router) Handle(method, pattern string, builder Builder, middlewares ...
 	for _, m := range middlewares {
 		h = m(h)
 	}
-	r.router.Handle(method, pattern, func(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
-		ctx := r.createContext(w, req, params)
+	muxPattern := exactUrl(method, pattern)
+	r.router.HandleFunc(muxPattern, func(w http.ResponseWriter, req *http.Request) {
+		ctx := r.createContext(w, req)
 		h(ctx)
 	})
 }

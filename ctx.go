@@ -13,14 +13,12 @@ import (
 	"github.com/deltegui/phx/localizer"
 	"github.com/deltegui/phx/pagination"
 	"github.com/deltegui/phx/session"
-	"github.com/julienschmidt/httprouter"
 )
 
 type Context struct {
-	Req    *http.Request
-	Res    http.ResponseWriter
-	params httprouter.Params
-	ctx    context.Context
+	Req *http.Request
+	Res http.ResponseWriter
+	ctx context.Context
 
 	locstore *localizer.LocalizerStore
 
@@ -90,7 +88,7 @@ func (ctx *Context) RedirectCode(to string, code int) error {
 }
 
 func (ctx *Context) GetUrlParam(name string) string {
-	return ctx.params.ByName(name)
+	return ctx.Req.PathValue(name)
 }
 
 func (ctx *Context) GetQueryParam(name string) string {
