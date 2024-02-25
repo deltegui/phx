@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -110,4 +111,13 @@ func (s Store) DeleteOld(duration time.Duration) error {
 		}
 	}
 	return nil
+}
+
+func (s Store) Open(path string) (io.ReadWriteCloser, string, error) {
+	return s.createFile(path)
+}
+
+func (s Store) Delete(relativePath string) error {
+	fullPath := fmt.Sprintf("%s/%s", s.path, relativePath)
+	return os.Remove(fullPath)
 }
