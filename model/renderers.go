@@ -66,6 +66,7 @@ type SelectItem struct {
 type SelectList struct {
 	Name     string
 	Multiple bool
+	Filtered bool
 	Items    []SelectItem
 }
 
