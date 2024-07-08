@@ -70,7 +70,6 @@ func (ctx *Context) GetUser() session.User {
 func (ctx *Context) HaveSession() bool {
 	instance := ctx.Get(session.ContextKey)
 	if instance == nil {
-		log.Println("Call to HaveSession. You dont have sessions enabled. To do so, you have to add a middleware.")
 		return false
 	}
 	if _, ok := instance.(session.User); !ok {

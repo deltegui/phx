@@ -88,6 +88,7 @@ func (csrf Csrf) CheckRequest(req *http.Request) bool {
 			log.Printf("Csrf header (%s) token not found\n", CsrfHeaderName)
 			return false
 		}
+		return csrf.Check(token)
 	}
 	return csrf.Check(token)
 }
