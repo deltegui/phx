@@ -13,6 +13,7 @@ import (
 	"github.com/deltegui/phx/localizer"
 	"github.com/deltegui/phx/pagination"
 	"github.com/deltegui/phx/session"
+	"github.com/deltegui/valtruc"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -26,7 +27,7 @@ type Context struct {
 
 	renderer Renderer
 
-	validate core.Validator
+	validate valtruc.Valtruc
 
 	cy core.Cypher
 }
@@ -104,8 +105,10 @@ func (ctx *Context) ChangeLanguage(to string) {
 	ctx.locstore.CreateCookie(ctx.Res, to)
 }
 
-func (ctx *Context) Validate(s any) map[string]string {
-	return ctx.validate(s)
+func (ctx *Context) Validate(s any) map[string][]valtruc.ValidationError {
+	// TODO CONTINUE PLS
+	output := map[string][]valtruc.ValidationError{}
+	return output
 }
 
 func (ctx *Context) ParseJson(dst any) error {
@@ -169,7 +172,18 @@ func (ctx *Context) RenderOK(parsed string, vm interface{}) error {
 	return ctx.Render(http.StatusOK, parsed, vm)
 }
 
-func (ctx *Context) RenderWithErrors(status int, parsed string, vm interface{}, formErrors map[string]string) error {
+func (ctx *Context) RenderBlock(status int, parsed, blockName string, vm interface{}) error {
+	if ctx.renderer == nil {
+		panic("Cannot call render. Missing dependency: phx.Renderer")
+	}
+	return ctx.renderer.RenderBlock(ctx, status, parsed, blockName, vm)
+}
+
+func (ctx *Context) RenderBlockOK(parsed, blockName string, vm interface{}) error {
+	return ctx.RenderBlock(http.StatusOK, parsed, blockName, vm)
+}
+
+func (ctx *Context) RenderWithErrors(status int, parsed string, vm interface{}, formErrors map[string][]core.ValidationError) error {
 	if ctx.renderer == nil {
 		panic("Cannot call render. Missing dependency: phx.Renderer")
 	}

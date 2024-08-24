@@ -4,13 +4,14 @@ import (
 	"fmt"
 
 	"github.com/deltegui/phx"
+	"github.com/deltegui/phx/core"
 	"github.com/deltegui/phx/localizer"
 )
 
 type ViewModel struct {
 	Model      interface{}
 	Localizer  localizer.Localizer
-	FormErrors map[string]string
+	FormErrors map[string][]core.ValidationError
 	CsrfToken  string
 	Ctx        *phx.Context
 }
@@ -52,9 +53,32 @@ func (vm ViewModel) GetFormError(key string) string {
 	if !ok {
 		return ""
 	}
-	locVal := vm.Localize(val)
+	if len(val) == 0 {
+		return ""
+	}
+	return vm.formatError(key, val[0])
+}
+
+func (vm ViewModel) formatError(key string, err core.ValidationError) string {
+	locVal := vm.Localize(err.GetName())
+	finalVal := err.Format(locVal)
 	locKey := vm.Localize(key)
-	return fmt.Sprintf(locVal, locKey)
+	return fmt.Sprintf(finalVal, locKey)
+}
+
+func (vm ViewModel) GetAllFormErrors(key string) []string {
+	output := []string{}
+	if vm.FormErrors == nil {
+		return output
+	}
+	val, ok := vm.FormErrors[key]
+	if !ok {
+		return output
+	}
+	for _, err := range val {
+		output = append(output, vm.formatError(key, err))
+	}
+	return output
 }
 
 type SelectItem struct {

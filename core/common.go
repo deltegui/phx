@@ -7,7 +7,13 @@ import (
 // UseCase is anything that have application domain code.
 type UseCase[R any, T any] func(R) (T, error)
 
-type Validator func(interface{}) map[string]string
+type ValidationError interface {
+	Error() string
+	Format(f string) string
+	GetName() string
+}
+
+type Validator func(interface{}) map[string][]ValidationError
 
 type Hasher interface {
 	Hash(value string) string

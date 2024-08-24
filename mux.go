@@ -14,7 +14,7 @@ import (
 
 	"github.com/deltegui/phx/core"
 	"github.com/deltegui/phx/localizer"
-	"github.com/deltegui/phx/validator"
+	"github.com/deltegui/valtruc"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -24,7 +24,8 @@ type Handler func(c *Context) error
 
 type Renderer interface {
 	Render(ctx *Context, status int, parsed string, vm interface{}) error
-	RenderWithErrors(ctx *Context, status int, parsed string, vm interface{}, formErrors map[string]string) error
+	RenderBlock(ctx *Context, status int, parsed, blockName string, vm interface{}) error
+	RenderWithErrors(ctx *Context, status int, parsed string, vm interface{}, formErrors map[string][]core.ValidationError) error
 }
 
 type Router struct {
@@ -34,7 +35,7 @@ type Router struct {
 	ErrorHandler func(*Context, error)
 
 	locstore *localizer.LocalizerStore
-	validate core.Validator
+	validate valtruc.Valtruc
 }
 
 func (r *Router) UseLocalization(files embed.FS, sharedKey, errorsKey string) {
@@ -78,7 +79,7 @@ func NewRouter() *Router {
 		router:       httprouter.New(),
 		middlewares:  []Middleware{},
 		ErrorHandler: defaultErrorHandler,
-		validate:     validator.New(),
+		validate:     valtruc.New(),
 	}
 }
 
@@ -89,6 +90,7 @@ func NewRouterFromOther(r *Router) *Router {
 		ErrorHandler: r.ErrorHandler,
 		middlewares:  r.middlewares,
 		locstore:     r.locstore,
+		validate:     r.validate,
 	}
 }
 

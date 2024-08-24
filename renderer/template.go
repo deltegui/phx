@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/deltegui/phx"
+	"github.com/deltegui/phx/core"
 	"github.com/deltegui/phx/localizer"
 	"github.com/deltegui/phx/model"
 )
@@ -33,6 +34,22 @@ func (r *TemplateRenderer) ShowAvailableTemplates() {
 	}
 }
 
+func (r *TemplateRenderer) RenderBlock(ctx *phx.Context, status int, parsed, blockName string, vm interface{}) error {
+	if ctx == nil {
+		panic("Called to Render outside request: no context!")
+	}
+	ctx.Res.WriteHeader(status)
+	model := model.CreateViewModel(ctx, parsed, vm)
+	template, ok := r.tmpl[parsed]
+	if !ok {
+		return fmt.Errorf("error executing template with parsed name: '%s'. It does not exists", parsed)
+	}
+	if err := template.ExecuteTemplate(ctx.Res, blockName, model); err != nil {
+		return fmt.Errorf("error executing tempalte with parsed name '%s': %s", parsed, err)
+	}
+	return nil
+}
+
 func (r *TemplateRenderer) Render(ctx *phx.Context, status int, parsed string, vm interface{}) error {
 	if ctx == nil {
 		panic("Called to Render outside request: no context!")
@@ -49,7 +66,7 @@ func (r *TemplateRenderer) Render(ctx *phx.Context, status int, parsed string, v
 	return nil
 }
 
-func (r *TemplateRenderer) RenderWithErrors(ctx *phx.Context, status int, parsed string, vm interface{}, formErrors map[string]string) error {
+func (r *TemplateRenderer) RenderWithErrors(ctx *phx.Context, status int, parsed string, vm interface{}, formErrors map[string][]core.ValidationError) error {
 	if ctx == nil {
 		panic("Called to Render outside request: no context!")
 	}
