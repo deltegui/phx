@@ -13,17 +13,17 @@ import (
 	"github.com/deltegui/phx/cypher"
 )
 
-type ID string
+type Id string
 
 type User struct {
-	ID    int64
+	Id    int64
 	Name  string
 	Role  core.Role
 	Image string
 }
 
 type Entry struct {
-	ID      ID
+	Id      Id
 	User    User
 	Timeout time.Time
 }
@@ -34,29 +34,29 @@ func (entry Entry) IsValid() bool {
 
 type SessionStore interface {
 	Save(entry Entry)
-	Get(id ID) (Entry, error)
-	Delete(id ID)
+	Get(id Id) (Entry, error)
+	Delete(id Id)
 }
 
 type MemoryStore struct {
-	values map[ID]Entry
+	values map[Id]Entry
 	mutex  sync.Mutex
 }
 
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		values: make(map[ID]Entry),
+		values: make(map[Id]Entry),
 		mutex:  sync.Mutex{},
 	}
 }
 
 func (store *MemoryStore) Save(entry Entry) {
 	store.mutex.Lock()
-	store.values[entry.ID] = entry
+	store.values[entry.Id] = entry
 	store.mutex.Unlock()
 }
 
-func (store *MemoryStore) Get(id ID) (Entry, error) {
+func (store *MemoryStore) Get(id Id) (Entry, error) {
 	store.mutex.Lock()
 	log.Println("[MemoryStore] number of sessions", len(store.values))
 	for key := range store.values {
@@ -70,7 +70,7 @@ func (store *MemoryStore) Get(id ID) (Entry, error) {
 	return entry, nil
 }
 
-func (store *MemoryStore) Delete(id ID) {
+func (store *MemoryStore) Delete(id Id) {
 	store.mutex.Lock()
 	delete(store.values, id)
 	store.mutex.Unlock()
@@ -103,7 +103,7 @@ func NewInMemoryManager(hasher core.Hasher, duration time.Duration, cypher core.
 func (manager *Manager) Add(user User) Entry {
 	id := manager.createSessionId(user)
 	entry := Entry{
-		ID:      id,
+		Id:      id,
 		User:    user,
 		Timeout: time.Now().Add(manager.timeoutDuration),
 	}
@@ -111,27 +111,27 @@ func (manager *Manager) Add(user User) Entry {
 	return entry
 }
 
-func (manager *Manager) createSessionId(user User) ID {
+func (manager *Manager) createSessionId(user User) Id {
 	const bits int = 32
 	random, err := rand.Prime(rand.Reader, bits)
 	if err != nil {
 		log.Panicln("Error while creating prime number for session id: ", err)
 	}
 	now := time.Now().UTC().Format(time.ANSIC)
-	str := fmt.Sprintf("%s-%s-%s-%d", random.String(), now, user.Name, user.ID)
+	str := fmt.Sprintf("%s-%s-%s-%d", random.String(), now, user.Name, user.Id)
 	hash := manager.hasher.Hash(str)
-	return ID(hash)
+	return Id(hash)
 }
 
-func (manager *Manager) Get(id ID) (Entry, error) {
+func (manager *Manager) Get(id Id) (Entry, error) {
 	return manager.store.Get(id)
 }
 
-func (manager *Manager) Delete(id ID) {
+func (manager *Manager) Delete(id Id) {
 	manager.store.Delete(id)
 }
 
-func (manager *Manager) GetUserIfValid(id ID) (User, error) {
+func (manager *Manager) GetUserIfValid(id Id) (User, error) {
 	entry, err := manager.Get(id)
 	if err != nil {
 		return User{}, err
@@ -148,7 +148,7 @@ const cookieKey string = "phx_session"
 func (manager *Manager) CreateSessionCookie(w http.ResponseWriter, user User) {
 	entry := manager.Add(user)
 	age := core.OneDayDuration
-	encoded, err := cypher.EncodeCookie(manager.cypher, string(entry.ID))
+	encoded, err := cypher.EncodeCookie(manager.cypher, string(entry.Id))
 	if err != nil {
 		log.Println("Cannot encrypt session cookie:", err)
 	}
@@ -163,16 +163,16 @@ func (manager *Manager) CreateSessionCookie(w http.ResponseWriter, user User) {
 	})
 }
 
-func readSessionId(req *http.Request, cy core.Cypher) (ID, *http.Cookie, error) {
+func readSessionId(req *http.Request, cy core.Cypher) (Id, *http.Cookie, error) {
 	cookie, err := req.Cookie(cookieKey)
 	if err != nil {
-		return ID(""), nil, errors.New("no session cookie is present in the request")
+		return Id(""), nil, errors.New("no session cookie is present in the request")
 	}
 	id, err := cypher.DecodeCookie(cy, cookie.Value)
 	if err != nil {
-		return ID(""), nil, err
+		return Id(""), nil, err
 	}
-	return ID(id), cookie, nil
+	return Id(id), cookie, nil
 }
 
 func (manager *Manager) ReadSessionCookie(req *http.Request) (User, error) {
