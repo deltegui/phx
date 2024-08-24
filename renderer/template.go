@@ -45,7 +45,7 @@ func (r *TemplateRenderer) RenderBlock(ctx *phx.Context, status int, parsed, blo
 		return fmt.Errorf("error executing template with parsed name: '%s'. It does not exists", parsed)
 	}
 	if err := template.ExecuteTemplate(ctx.Res, blockName, model); err != nil {
-		return fmt.Errorf("error executing tempalte with parsed name '%s': %s", parsed, err)
+		return fmt.Errorf("error executing tempalte with parsed name '%s': %w", parsed, err)
 	}
 	return nil
 }
@@ -61,7 +61,7 @@ func (r *TemplateRenderer) Render(ctx *phx.Context, status int, parsed string, v
 		return fmt.Errorf("error executing template with parsed name: '%s'. It does not exists", parsed)
 	}
 	if err := template.Execute(ctx.Res, model); err != nil {
-		return fmt.Errorf("error executing tempalte with parsed name '%s': %s", parsed, err)
+		return fmt.Errorf("error executing tempalte with parsed name '%s': %w", parsed, err)
 	}
 	return nil
 }
@@ -74,7 +74,7 @@ func (r *TemplateRenderer) RenderWithErrors(ctx *phx.Context, status int, parsed
 	model := model.CreateViewModel(ctx, parsed, vm)
 	model.FormErrors = formErrors
 	if err := r.tmpl[parsed].Execute(ctx.Res, model); err != nil {
-		return fmt.Errorf("error executing tempalte with parsed name '%s': %s", parsed, err)
+		return fmt.Errorf("error executing tempalte with parsed name '%s': %w", parsed, err)
 	}
 	return nil
 }
@@ -91,10 +91,9 @@ func (r *TemplateRenderer) AddDefaultTemplateFunctions() {
 			if b {
 				//return loc.Get("shared.yes")
 				return "Sí"
-			} else {
-				//return loc.Get("shared.no")
-				return "No"
 			}
+			//return loc.Get("shared.no")
+			return "No"
 		},
 		"SelectList": func(loc localizer.Localizer, list model.SelectList) model.ViewModel {
 			return model.ViewModel{

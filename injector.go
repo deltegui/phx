@@ -44,7 +44,7 @@ type Injector struct {
 	builders map[reflect.Type]Builder
 }
 
-// NewInjector with default values
+// NewInjector with default values.
 func NewInjector() *Injector {
 	return &Injector{
 		builders: make(map[reflect.Type]Builder),
@@ -64,12 +64,12 @@ func (injector Injector) ShowAvailableBuilders() {
 	}
 }
 
-// Get returns a builded dependency
+// Get returns a builded dependency.
 func (injector Injector) Get(name interface{}) (interface{}, error) {
 	return injector.GetByType(reflect.TypeOf(name))
 }
 
-// GetByType returns a builded dependency identified by type
+// GetByType returns a builded dependency identified by type.
 func (injector Injector) GetByType(name reflect.Type) (interface{}, error) {
 	dependencyBuilder := injector.builders[name]
 	if dependencyBuilder == nil {
@@ -78,17 +78,17 @@ func (injector Injector) GetByType(name reflect.Type) (interface{}, error) {
 	return injector.CallBuilder(dependencyBuilder), nil
 }
 
-// ResolveHandler created by a builder
+// ResolveHandler created by a builder.
 func (injector Injector) ResolveHandler(builder Builder) Handler {
 	return injector.CallBuilder(builder).(Handler)
 }
 
 // CallBuilder injecting all parameters with provided builders. If some parameter
-// type cannot be found, it will panic
+// type cannot be found, it will panic.
 func (injector Injector) CallBuilder(builder Builder) interface{} {
 	var inputs []reflect.Value
 	builderType := reflect.TypeOf(builder)
-	for i := 0; i < builderType.NumIn(); i++ {
+	for i := range builderType.NumIn() {
 		impl, err := injector.GetByType(builderType.In(i))
 		if err != nil {
 			panic(err)
@@ -102,14 +102,14 @@ func (injector Injector) CallBuilder(builder Builder) interface{} {
 
 // PopulateStruct fills a struct with the implementations
 // that the injector can create. Make sure you pass a reference and
-// not a value
+// not a value.
 func (injector Injector) PopulateStruct(userStruct interface{}) {
 	ptrStructValue := reflect.ValueOf(userStruct)
 	structValue := ptrStructValue.Elem()
 	if structValue.Kind() != reflect.Struct {
 		log.Panicln("Value passed to PopulateStruct is not a struct")
 	}
-	for i := 0; i < structValue.NumField(); i++ {
+	for i := range structValue.NumField() {
 		field := structValue.Field(i)
 		if field.IsValid() && field.CanSet() {
 			impl, err := injector.GetByType(field.Type())
@@ -121,11 +121,11 @@ func (injector Injector) PopulateStruct(userStruct interface{}) {
 	}
 }
 
-// Run is a function that runs a Runner. Show Runner type for more information
+// Run is a function that runs a Runner. Show Runner type for more information.
 func (injector Injector) Run(runner Runner) {
 	var inputs []reflect.Value
 	runnerType := reflect.TypeOf(runner)
-	for i := 0; i < runnerType.NumIn(); i++ {
+	for i := range runnerType.NumIn() {
 		impl, err := injector.GetByType(runnerType.In(i))
 		if err != nil {
 			panic(err)

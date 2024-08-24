@@ -17,7 +17,7 @@ type ViewModel struct {
 }
 
 func CreateViewModel(ctx *phx.Context, name string, model interface{}) ViewModel {
-	var loc localizer.Localizer = nil
+	var loc localizer.Localizer
 	if ctx.HaveLocalizer() {
 		loc = ctx.GetLocalizer(name)
 	}

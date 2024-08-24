@@ -8,13 +8,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/julienschmidt/httprouter"
+
 	"github.com/deltegui/phx/core"
 	"github.com/deltegui/phx/cypher"
 	"github.com/deltegui/phx/localizer"
 	"github.com/deltegui/phx/pagination"
 	"github.com/deltegui/phx/session"
-	"github.com/deltegui/valtruc"
-	"github.com/julienschmidt/httprouter"
 )
 
 type Context struct {
@@ -23,25 +23,25 @@ type Context struct {
 	params httprouter.Params
 	ctx    context.Context
 
-	locstore *localizer.LocalizerStore
+	locstore *localizer.Store
 
 	renderer Renderer
 
-	validate valtruc.Valtruc
+	validate core.Validator
 
 	cy core.Cypher
 }
 
-func (r *Context) Set(key, value any) {
-	r.ctx = context.WithValue(r.ctx, key, value)
+func (ctx *Context) Set(key, value any) {
+	ctx.ctx = context.WithValue(ctx.ctx, key, value)
 }
 
-func (r *Context) Get(key any) any {
-	return r.ctx.Value(key)
+func (ctx *Context) Get(key any) any {
+	return ctx.ctx.Value(key)
 }
 
 func (ctx *Context) PaginationToVM(pag pagination.Pagination) pagination.ViewModel {
-	return pagination.PaginationToVM(pag, ctx.GetLocalizer("common/pagination"))
+	return pagination.ToVM(pag, ctx.GetLocalizer("common/pagination"))
 }
 
 func (ctx *Context) HaveLocalizer() bool {
@@ -89,7 +89,7 @@ func (ctx *Context) RedirectCode(to string, code int) error {
 	return nil
 }
 
-func (ctx *Context) GetUrlParam(name string) string {
+func (ctx *Context) GetURLParam(name string) string {
 	return ctx.params.ByName(name)
 }
 
@@ -101,14 +101,12 @@ func (ctx *Context) GetCurrentLanguage() string {
 	return ctx.locstore.ReadCookie(ctx.Req)
 }
 
-func (ctx *Context) ChangeLanguage(to string) {
-	ctx.locstore.CreateCookie(ctx.Res, to)
+func (ctx *Context) ChangeLanguage(to string) error {
+	return ctx.locstore.CreateCookie(ctx.Res, to)
 }
 
-func (ctx *Context) Validate(s any) map[string][]valtruc.ValidationError {
-	// TODO CONTINUE PLS
-	output := map[string][]valtruc.ValidationError{}
-	return output
+func (ctx *Context) Validate(s any) map[string][]core.ValidationError {
+	return ctx.validate(s)
 }
 
 func (ctx *Context) ParseJson(dst any) error {
@@ -129,7 +127,7 @@ func (ctx *Context) NotFound(data string, a ...any) error {
 	return ctx.String(http.StatusNotFound, data, a...)
 }
 
-func (ctx *Context) OK(data string, a ...any) error {
+func (ctx *Context) Ok(data string, a ...any) error {
 	return ctx.String(http.StatusOK, data, a...)
 }
 
@@ -138,7 +136,7 @@ func (ctx *Context) InternalServerError(data string, a ...any) error {
 }
 
 func (ctx *Context) NotContent() error {
-	ctx.Res.WriteHeader(204)
+	ctx.Res.WriteHeader(http.StatusNoContent)
 	return nil
 }
 
@@ -149,15 +147,15 @@ func (ctx *Context) Forbidden(data string, a ...any) error {
 func (ctx *Context) Json(status int, data any) error {
 	response, err := json.Marshal(data)
 	if err != nil {
-		return fmt.Errorf("error marshaling data: %s", err)
+		return fmt.Errorf("error marshaling data: %w", err)
 	}
 	ctx.Res.WriteHeader(status)
 	ctx.Res.Header().Set("Content-Type", "application/json")
-	ctx.Res.Write(response)
-	return nil
+	_, err = ctx.Res.Write(response)
+	return err
 }
 
-func (ctx *Context) JsonOK(data interface{}) error {
+func (ctx *Context) JsonOk(data interface{}) error {
 	return ctx.Json(http.StatusOK, data)
 }
 
@@ -168,7 +166,7 @@ func (ctx *Context) Render(status int, parsed string, vm interface{}) error {
 	return ctx.renderer.Render(ctx, status, parsed, vm)
 }
 
-func (ctx *Context) RenderOK(parsed string, vm interface{}) error {
+func (ctx *Context) RenderOk(parsed string, vm interface{}) error {
 	return ctx.Render(http.StatusOK, parsed, vm)
 }
 
@@ -179,11 +177,16 @@ func (ctx *Context) RenderBlock(status int, parsed, blockName string, vm interfa
 	return ctx.renderer.RenderBlock(ctx, status, parsed, blockName, vm)
 }
 
-func (ctx *Context) RenderBlockOK(parsed, blockName string, vm interface{}) error {
+func (ctx *Context) RenderBlockOk(parsed, blockName string, vm interface{}) error {
 	return ctx.RenderBlock(http.StatusOK, parsed, blockName, vm)
 }
 
-func (ctx *Context) RenderWithErrors(status int, parsed string, vm interface{}, formErrors map[string][]core.ValidationError) error {
+func (ctx *Context) RenderWithErrors(
+	status int,
+	parsed string,
+	vm interface{},
+	formErrors map[string][]core.ValidationError,
+) error {
 	if ctx.renderer == nil {
 		panic("Cannot call render. Missing dependency: phx.Renderer")
 	}
@@ -211,10 +214,11 @@ func (ctx *Context) CreateCookieOptions(opt CookieOptions) error {
 		var err error
 		data, err = cypher.EncodeCookie(ctx.cy, opt.Value)
 		if err != nil {
-			return fmt.Errorf("error encoding cookie: %s", err)
+			return fmt.Errorf("error encoding cookie: %w", err)
 		}
 	} else {
-		log.Println("[PHX] WARNING!: Using plain cookies. You must provide a core.Cypher implementation to use encoded cookies")
+		log.Println("[PHX] WARNING!: Using plain cookies. " +
+			"You must provide a core.Cypher implementation to use encoded cookies")
 		data = opt.Value
 	}
 	http.SetCookie(ctx.Res, &http.Cookie{
@@ -233,7 +237,7 @@ func (ctx *Context) CreateCookieOptions(opt CookieOptions) error {
 func (ctx *Context) CreateCookie(name, data string) error {
 	return ctx.CreateCookieOptions(CookieOptions{
 		Name:     name,
-		Expires:  24 * time.Hour,
+		Expires:  core.OneDayDuration,
 		Value:    data,
 		HttpOnly: true,
 		Secure:   false,
@@ -243,27 +247,29 @@ func (ctx *Context) CreateCookie(name, data string) error {
 func (ctx *Context) ReadCookie(name string) (string, error) {
 	cookie, err := ctx.Req.Cookie(name)
 	if err != nil {
-		return "", fmt.Errorf("error while reading cookie with key: '%s': %s", name, err)
+		return "", fmt.Errorf("error while reading cookie with key: '%s': %w", name, err)
 	}
 	var data string
 	if ctx.cy != nil {
 		data, err = cypher.DecodeCookie(ctx.cy, cookie.Value)
 		if err != nil {
-			return "", fmt.Errorf("cannot decode cookie: %s", err)
+			return "", fmt.Errorf("cannot decode cookie: %w", err)
 		}
 	} else {
-		log.Println("[PHX] WARNING!: Using plain cookies. You must provide a core.Cypher implementation to use encoded cookies")
+		log.Println("[PHX] WARNING!: Using plain cookies. " +
+			"You must provide a core.Cypher implementation to use encoded cookies")
 		data = cookie.Value
 	}
 	return data, nil
 }
 func (ctx *Context) DeleteCookie(name string) error {
 	if ctx.cy == nil {
-		log.Println("[PHX] WARNING!: Using plain cookies. You must provide a core.Cypher implementation to use encoded cookies")
+		log.Println("[PHX] WARNING!: Using plain cookies. " +
+			"You must provide a core.Cypher implementation to use encoded cookies")
 	}
 	_, err := ctx.Req.Cookie(name)
 	if err != nil {
-		return fmt.Errorf("error while reading cookie with key: '%s': %s", name, err)
+		return fmt.Errorf("error while reading cookie with key: '%s': %w", name, err)
 	}
 	http.SetCookie(ctx.Res, &http.Cookie{
 		Name:     name,

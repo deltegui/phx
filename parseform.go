@@ -5,7 +5,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/deltegui/phx/core"
 )
+
+const multipartFormMaxSize = 64 << 20 // 20MB
 
 // ParseForm parses req.Form and then serializes the form data to
 // the dst struct using reflection. The form names should match to
@@ -48,7 +52,7 @@ import (
 func (ctx *Context) ParseForm(dst interface{}) {
 	contentType := ctx.Req.Header.Get("Content-Type")
 	if strings.HasPrefix(contentType, "multiplart/form-data") && ctx.Req.Form == nil {
-		ctx.Req.ParseMultipartForm(64 << 20) // 20mb
+		ctx.Req.ParseMultipartForm(multipartFormMaxSize)
 	} else if ctx.Req.Form == nil {
 		ctx.Req.ParseForm()
 	}
@@ -61,7 +65,7 @@ func (ctx *Context) ParseForm(dst interface{}) {
 		return
 	}
 	num := t.NumField()
-	for i := 0; i < num; i++ {
+	for i := range num {
 		fieldValue := e.Field(i)
 		fieldType := t.Field(i)
 		var lookup string
@@ -103,33 +107,33 @@ func setValue(field reflect.Value, value string) bool {
 
 	// Int values
 	case reflect.Int:
-		return setInt[int](field, value, isPointer, 64)
+		return setInt[int](field, value, isPointer, core.Size64)
 	case reflect.Int64:
-		return setInt[int64](field, value, isPointer, 64)
+		return setInt[int64](field, value, isPointer, core.Size64)
 	case reflect.Int32:
-		return setInt[int32](field, value, isPointer, 32)
+		return setInt[int32](field, value, isPointer, core.Size32)
 	case reflect.Int16:
-		return setInt[int16](field, value, isPointer, 16)
+		return setInt[int16](field, value, isPointer, core.Size16)
 	case reflect.Int8:
-		return setInt[int8](field, value, isPointer, 8)
+		return setInt[int8](field, value, isPointer, core.Size8)
 
 	// UInt values
 	case reflect.Uint:
-		return setUint[uint](field, value, isPointer, 64)
+		return setUint[uint](field, value, isPointer, core.Size64)
 	case reflect.Uint64:
-		return setUint[uint64](field, value, isPointer, 64)
+		return setUint[uint64](field, value, isPointer, core.Size64)
 	case reflect.Uint32:
-		return setUint[uint32](field, value, isPointer, 32)
+		return setUint[uint32](field, value, isPointer, core.Size32)
 	case reflect.Uint16:
-		return setUint[uint16](field, value, isPointer, 16)
+		return setUint[uint16](field, value, isPointer, core.Size16)
 	case reflect.Uint8:
-		return setUint[uint8](field, value, isPointer, 8)
+		return setUint[uint8](field, value, isPointer, core.Size8)
 
 	// Floating numbers
 	case reflect.Float64:
-		return setFloat[float64](field, value, isPointer, 64)
+		return setFloat[float64](field, value, isPointer, core.Size64)
 	case reflect.Float32:
-		return setFloat[float32](field, value, isPointer, 32)
+		return setFloat[float32](field, value, isPointer, core.Size32)
 
 	default:
 		return false
@@ -152,7 +156,12 @@ func setDateTime(field reflect.Value, value string, isPointer bool) bool {
 	return true
 }
 
-func setInt[T int | int8 | int16 | int32 | int64](field reflect.Value, value string, isPointer bool, bits int) bool {
+func setInt[T int | int8 | int16 | int32 | int64](
+	field reflect.Value,
+	value string,
+	isPointer bool,
+	bits int,
+) bool {
 	i, err := strconv.ParseInt(value, 0, bits)
 	if err != nil {
 		return false
@@ -169,7 +178,12 @@ func setInt[T int | int8 | int16 | int32 | int64](field reflect.Value, value str
 	return true
 }
 
-func setUint[T uint | uint8 | uint16 | uint32 | uint64](field reflect.Value, value string, isPointer bool, bits int) bool {
+func setUint[T uint | uint8 | uint16 | uint32 | uint64](
+	field reflect.Value,
+	value string,
+	isPointer bool,
+	bits int,
+) bool {
 	i, err := strconv.ParseUint(value, 0, bits)
 	if err != nil {
 		return false
@@ -186,7 +200,12 @@ func setUint[T uint | uint8 | uint16 | uint32 | uint64](field reflect.Value, val
 	return true
 }
 
-func setFloat[T float64 | float32](field reflect.Value, value string, isPointer bool, bits int) bool {
+func setFloat[T float64 | float32](
+	field reflect.Value,
+	value string,
+	isPointer bool,
+	bits int,
+) bool {
 	f, err := strconv.ParseFloat(value, bits)
 	if err != nil {
 		return false

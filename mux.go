@@ -12,10 +12,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/julienschmidt/httprouter"
+
 	"github.com/deltegui/phx/core"
 	"github.com/deltegui/phx/localizer"
-	"github.com/deltegui/valtruc"
-	"github.com/julienschmidt/httprouter"
+	"github.com/deltegui/phx/validator"
 )
 
 type Middleware func(Handler) Handler
@@ -34,8 +35,8 @@ type Router struct {
 	middlewares  []Middleware
 	ErrorHandler func(*Context, error)
 
-	locstore *localizer.LocalizerStore
-	validate valtruc.Valtruc
+	locstore *localizer.Store
+	validate core.Validator
 }
 
 func (r *Router) UseLocalization(files embed.FS, sharedKey, errorsKey string) {
@@ -79,7 +80,7 @@ func NewRouter() *Router {
 		router:       httprouter.New(),
 		middlewares:  []Middleware{},
 		ErrorHandler: defaultErrorHandler,
-		validate:     valtruc.New(),
+		validate:     validator.New(),
 	}
 }
 
@@ -232,7 +233,8 @@ func waitAndStopServer(server *http.Server) {
 	<-done
 
 	log.Print("Server Stopped")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	const maxTiemout = 5 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), maxTiemout)
 
 	defer func() {
 		cancel()

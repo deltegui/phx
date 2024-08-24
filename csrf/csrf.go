@@ -39,14 +39,14 @@ func (csrf *Csrf) encrypt(raw string) string {
 func (csrf *Csrf) decrypt(token string) (string, error) {
 	decoded, err := cypher.DecodeCookie(csrf.cipher, token)
 	if err != nil {
-		return "", fmt.Errorf("cannot decode csrf token: %s", err)
+		return "", fmt.Errorf("cannot decode csrf token: %w", err)
 	}
 	return decoded, nil
 }
 
 func (csrf Csrf) Generate() string {
 	unixTime := time.Now().Unix()
-	prime, err := rand.Prime(rand.Reader, 64)
+	prime, err := rand.Prime(rand.Reader, core.Size64)
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -62,12 +62,13 @@ func (csrf Csrf) Check(token string) bool {
 		return false
 	}
 	parts := strings.Split(raw, "//00//")
-	if len(parts) < 2 {
+	const minimumParts = 2
+	if len(parts) < minimumParts {
 		log.Println("Malformed csrf token. Not enough parts.")
 		return false
 	}
 	unixTime := parts[0]
-	i, err := strconv.ParseInt(unixTime, 10, 64)
+	i, err := strconv.ParseInt(unixTime, core.IntBase10, core.Size64)
 	if err != nil {
 		log.Println("Malformed csrf token. Unixtime is not int64.")
 		return false

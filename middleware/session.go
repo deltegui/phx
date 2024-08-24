@@ -15,7 +15,7 @@ func Authorize(manager *session.Manager, url string) phx.Middleware {
 			user, err := manager.ReadSessionCookie(ctx.Req)
 			if err != nil {
 				handleError(ctx, url)
-				return nil
+				return err
 			}
 			ctx.Set(session.ContextKey, user)
 			return next(ctx)
@@ -29,7 +29,7 @@ func AuthorizeRoles(manager *session.Manager, url string, roles []core.Role) phx
 			user, err := manager.ReadSessionCookie(ctx.Req)
 			if err != nil {
 				handleError(ctx, url)
-				return nil
+				return err
 			}
 			for _, authorizedRol := range roles {
 				if user.Role == authorizedRol {
@@ -48,11 +48,11 @@ func Admin(manager *session.Manager, url string) phx.Middleware {
 			user, err := manager.ReadSessionCookie(ctx.Req)
 			if err != nil {
 				handleError(ctx, url)
-				return nil
+				return err
 			}
 			if user.Role != core.RoleAdmin {
 				handleError(ctx, url)
-				return nil
+				return err
 			}
 			ctx.Set(session.ContextKey, user)
 			return next(ctx)

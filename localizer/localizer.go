@@ -27,25 +27,20 @@ type i18n map[string]Localizer
 
 const fallbackLanguage string = "es"
 
-var suppoertedLangauges []string = []string{
-	"es",
-	"en",
-}
-
 const cookieKey string = "language"
 
-type LocalizerStore struct {
+type Store struct {
 	files     embed.FS
 	sharedKey string
 	errorsKey string
 	cypher    core.Cypher
 }
 
-func NewLocalizerStore(files embed.FS, sharedKey, errorsKey string, cypher core.Cypher) LocalizerStore {
-	return LocalizerStore{files, sharedKey, errorsKey, cypher}
+func NewLocalizerStore(files embed.FS, sharedKey, errorsKey string, cypher core.Cypher) Store {
+	return Store{files, sharedKey, errorsKey, cypher}
 }
 
-func (ls LocalizerStore) loadFile(file string) i18n {
+func (ls Store) loadFile(file string) i18n {
 	raw, err := ls.files.ReadFile(file)
 	if err != nil {
 		log.Panicln("Error while reading file ", file, err)
@@ -57,7 +52,7 @@ func (ls LocalizerStore) loadFile(file string) i18n {
 	return values
 }
 
-func (ls LocalizerStore) GetWithoutShared(key, language string) Localizer {
+func (ls Store) GetWithoutShared(key, language string) Localizer {
 	log.Println("Loading localization with key", key)
 	key = fmt.Sprintf("%s.json", key)
 	values := ls.loadFile(key)
@@ -71,7 +66,7 @@ func (ls LocalizerStore) GetWithoutShared(key, language string) Localizer {
 	return val
 }
 
-func (ls LocalizerStore) Get(key, language string) Localizer {
+func (ls Store) Get(key, language string) Localizer {
 	loc := ls.GetWithoutShared(key, language)
 	shared := ls.GetWithoutShared(ls.sharedKey, language)
 	mergeLocalizers(loc, shared)
@@ -84,39 +79,39 @@ func mergeLocalizers(dst, origin Localizer) {
 	}
 }
 
-func (ls LocalizerStore) GetUsingRequest(key string, req *http.Request) Localizer {
+func (ls Store) GetUsingRequest(key string, req *http.Request) Localizer {
 	lang := ls.ReadCookie(req)
 	return ls.Get(key, lang)
 }
 
-func (ls LocalizerStore) GetUsingRequestWithoutShared(key string, req *http.Request) Localizer {
+func (ls Store) GetUsingRequestWithoutShared(key string, req *http.Request) Localizer {
 	lang := ls.ReadCookie(req)
 	return ls.GetWithoutShared(key, lang)
 }
 
-func (ls LocalizerStore) GetLocalizedError(err core.UseCaseError, req *http.Request) string {
+func (ls Store) GetLocalizedError(err core.UseCaseError, req *http.Request) string {
 	lang := ls.ReadCookie(req)
 	key := strconv.Itoa(int(err.Code))
 	return ls.GetWithoutShared(ls.errorsKey, lang)[key]
 }
 
-func (ls LocalizerStore) LoadIntoField(field **Localizer, key string, language string) {
+func (ls Store) LoadIntoField(field **Localizer, key string, language string) {
 	if *field == nil {
 		localizer := ls.Get(key, language)
 		*field = &localizer
 	}
 }
 
-func (ls LocalizerStore) LoadIntoFieldUsingRequest(field **Localizer, key string, req *http.Request) {
+func (ls Store) LoadIntoFieldUsingRequest(field **Localizer, key string, req *http.Request) {
 	lang := ls.ReadCookie(req)
 	ls.LoadIntoField(field, key, lang)
 }
 
-func (ls LocalizerStore) CreateCookie(w http.ResponseWriter, localization string) {
-	CreateCookie(w, localization, ls.cypher)
+func (ls Store) CreateCookie(w http.ResponseWriter, localization string) error {
+	return CreateCookie(w, localization, ls.cypher)
 }
 
-func (ls LocalizerStore) ReadCookie(req *http.Request) string {
+func (ls Store) ReadCookie(req *http.Request) string {
 	lang, err := ReadCookie(req, ls.cypher)
 	if err != nil {
 		return fallbackLanguage
@@ -127,17 +122,21 @@ func (ls LocalizerStore) ReadCookie(req *http.Request) string {
 func ReadCookie(req *http.Request, cy core.Cypher) (string, error) {
 	cookie, err := req.Cookie(cookieKey)
 	if err != nil {
-		return fallbackLanguage, nil
+		return fallbackLanguage, err
 	}
 	langBytes, err := cypher.DecodeCookie(cy, cookie.Value)
 	if err != nil {
-		return "", fmt.Errorf("cannot read language cookie: %s", err)
+		return "", fmt.Errorf("cannot read language cookie: %w", err)
 	}
-	return string(langBytes), nil
+	return langBytes, nil
 }
 
 func CreateCookie(w http.ResponseWriter, localization string, cy core.Cypher) error {
 	lang := fallbackLanguage
+	suppoertedLangauges := []string{
+		"es",
+		"en",
+	}
 	for _, supported := range suppoertedLangauges {
 		if localization == supported {
 			lang = localization
@@ -147,14 +146,13 @@ func CreateCookie(w http.ResponseWriter, localization string, cy core.Cypher) er
 	log.Printf("Creating language cookie for lang; '%s'", lang)
 	encode, err := cypher.EncodeCookie(cy, lang)
 	if err != nil {
-		return fmt.Errorf("cannot create language cookie: %s", err)
+		return fmt.Errorf("cannot create language cookie: %w", err)
 	}
-	age := 24 * time.Hour
 	http.SetCookie(w, &http.Cookie{
 		Name:     cookieKey,
 		Value:    encode,
-		Expires:  time.Now().Add(age),
-		MaxAge:   int(age.Seconds()),
+		Expires:  time.Now().Add(core.OneDayDuration),
+		MaxAge:   int(core.OneDayDuration.Seconds()),
 		Path:     "/",
 		SameSite: http.SameSiteDefaultMode,
 	})

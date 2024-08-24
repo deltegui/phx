@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -17,7 +18,7 @@ type AES256 struct {
 }
 
 func GenerateRandomPass() []byte {
-	bytes := make([]byte, 32) //generate a random 32 byte key for AES-256
+	bytes := make([]byte, core.Size32) // generate a random 32 byte key for AES-256
 	if _, err := rand.Read(bytes); err != nil {
 		log.Fatalln("Cannot generate random key for aes encryptation in CSRF", err)
 	}
@@ -29,7 +30,7 @@ func GenerateRandomPassAsString() string {
 }
 
 func generateCipher(pass []byte) cipher.AEAD {
-	if len(pass) != 32 {
+	if len(pass) != core.Size32 {
 		log.Fatalln("The csrf encrypt password must be 32 bit long")
 	}
 	aes, err := aes.NewCipher(pass)
@@ -66,7 +67,7 @@ func NewWithPasswordAsString(password string) core.Cypher {
 func (aes AES256) Encrypt(data []byte) ([]byte, error) {
 	nonce := make([]byte, aes.cipher.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, fmt.Errorf("cannot read from rand: %s", err)
+		return nil, fmt.Errorf("cannot read from rand: %w", err)
 	}
 	dst := aes.cipher.Seal(nonce, nonce, data, nil)
 	return dst, nil
@@ -75,12 +76,12 @@ func (aes AES256) Encrypt(data []byte) ([]byte, error) {
 func (aes AES256) Decrypt(data []byte) ([]byte, error) {
 	nonceSize := aes.cipher.NonceSize()
 	if len(data) < nonceSize {
-		return nil, fmt.Errorf("malformed csrf token")
+		return nil, errors.New("malformed csrf token")
 	}
 	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
 	plaintext, err := aes.cipher.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return nil, fmt.Errorf("cannot decrypt csrf token: %s", err)
+		return nil, fmt.Errorf("cannot decrypt csrf token: %w", err)
 	}
 	return plaintext, nil
 }

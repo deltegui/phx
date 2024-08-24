@@ -2,7 +2,21 @@ package core
 
 import (
 	"fmt"
+	"time"
 )
+
+const (
+	Size64 int = 64
+	Size32 int = 32
+	Size16 int = 16
+	Size8  int = 8
+)
+
+const (
+	IntBase10 int = 10
+)
+
+const OneDayDuration time.Duration = 24 * time.Hour
 
 // UseCase is anything that have application domain code.
 type UseCase[R any, T any] func(R) (T, error)

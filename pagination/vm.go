@@ -44,20 +44,20 @@ func (vm ViewModel) ToDto() Pagination {
 	}
 }
 
-func PaginationToVM(p Pagination, loc localizer.Localizer) ViewModel {
+func ToVM(p Pagination, loc localizer.Localizer) ViewModel {
 	const margin int = 4
 	startElement := ((p.CurrentPage - 1) * p.ElementsPerPage)
 	lastPage := int(math.Ceil(float64(p.TotalElements) / float64(p.ElementsPerPage)))
-	min := p.CurrentPage - margin
-	max := p.CurrentPage + margin
-	if min < 1 {
-		min = 1
+	minPag := p.CurrentPage - margin
+	maxPag := p.CurrentPage + margin
+	if minPag < 1 {
+		minPag = 1
 	}
-	if max > lastPage {
-		max = lastPage
+	if maxPag > lastPage {
+		maxPag = lastPage
 	}
 	var sequence []int
-	for i := min; i <= max; i++ {
+	for i := minPag; i <= maxPag; i++ {
 		sequence = append(sequence, i)
 	}
 	return ViewModel{

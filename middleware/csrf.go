@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 
 	"github.com/deltegui/phx"
@@ -17,7 +17,7 @@ func Csrf(cs *csrf.Csrf) phx.Middleware {
 			}
 			if !cs.CheckRequest(ctx.Req) {
 				ctx.Res.WriteHeader(http.StatusForbidden)
-				return fmt.Errorf("expired csrf token")
+				return errors.New("expired csrf token")
 			}
 			ctx.Set(csrf.ContextKey, cs.Generate())
 			return next(ctx)

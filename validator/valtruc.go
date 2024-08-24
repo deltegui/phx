@@ -1,6 +1,8 @@
 package validator
 
 import (
+	"errors"
+
 	"github.com/deltegui/phx/core"
 	"github.com/deltegui/valtruc"
 )
@@ -27,8 +29,12 @@ func New() core.Validator {
 		errs := vt.Validate(i)
 		output := map[string][]core.ValidationError{}
 
+		verr := valtruc.ValidationError{}
 		for _, err := range errs {
-			verr := err.(valtruc.ValidationError)
+			ok := errors.As(err, &verr)
+			if !ok {
+				continue
+			}
 			fieldName := verr.GetFieldName()
 			output[fieldName] = append(output[fieldName], valtrucValidationError{verr})
 		}
