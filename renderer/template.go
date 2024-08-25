@@ -79,6 +79,19 @@ func (r *TemplateRenderer) RenderWithErrors(ctx *phx.Context, status int, parsed
 	return nil
 }
 
+func (r *TemplateRenderer) RenderBlockWithErrors(ctx *phx.Context, status int, parsed, blockName string, vm interface{}, formErrors map[string][]core.ValidationError) error {
+	if ctx == nil {
+		panic("Called to Render outside request: no context!")
+	}
+	ctx.Res.WriteHeader(status)
+	model := model.CreateViewModel(ctx, parsed, vm)
+	model.FormErrors = formErrors
+	if err := r.tmpl[parsed].ExecuteTemplate(ctx.Res, blockName, model); err != nil {
+		return fmt.Errorf("error executing tempalte with parsed name '%s': %w", parsed, err)
+	}
+	return nil
+}
+
 func (r *TemplateRenderer) AddDefaultTemplateFunctions() {
 	r.tmplFuncs = map[string]any{
 		"Uppercase": func(v string) string {

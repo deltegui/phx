@@ -27,6 +27,7 @@ type Renderer interface {
 	Render(ctx *Context, status int, parsed string, vm interface{}) error
 	RenderBlock(ctx *Context, status int, parsed, blockName string, vm interface{}) error
 	RenderWithErrors(ctx *Context, status int, parsed string, vm interface{}, formErrors map[string][]core.ValidationError) error
+	RenderBlockWithErrors(ctx *Context, status int, parsed, blockName string, vm interface{}, formErrors map[string][]core.ValidationError) error
 }
 
 type Router struct {
