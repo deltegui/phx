@@ -7,6 +7,24 @@ import (
 	"github.com/deltegui/valtruc"
 )
 
+type CustomValidationError struct {
+	Param   string
+	Name    string
+	Message string
+}
+
+func (verr CustomValidationError) Format(f string) string {
+	return valtruc.FormatWithParam(f, verr.Param)
+}
+
+func (verr CustomValidationError) Error() string {
+	return verr.Message
+}
+
+func (verr CustomValidationError) GetName() string {
+	return verr.Name
+}
+
 type valtrucValidationError struct {
 	err valtruc.ValidationError
 }
