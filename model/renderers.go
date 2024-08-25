@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/deltegui/phx"
 	"github.com/deltegui/phx/core"
@@ -60,8 +61,11 @@ func (vm ViewModel) GetFormError(key string) string {
 }
 
 func (vm ViewModel) formatError(key string, err core.ValidationError) string {
+	log.Println("Error:", err)
 	locVal := vm.Localize(err.GetName())
+	log.Println("locVal format error", locVal)
 	finalVal := err.Format(locVal)
+	log.Println(finalVal)
 	locKey := vm.Localize(key)
 	return fmt.Sprintf(finalVal, locKey)
 }
