@@ -45,6 +45,9 @@ func New() core.Validator {
 	vt := valtruc.New()
 	return func(i interface{}) map[string][]core.ValidationError {
 		errs := vt.Validate(i)
+		if errs == nil {
+			return nil
+		}
 		output := map[string][]core.ValidationError{}
 
 		verr := valtruc.ValidationError{}
